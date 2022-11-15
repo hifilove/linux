@@ -55,7 +55,7 @@ void jbd2_journal_destroy_transaction_cache(void)
 	transaction_cache = NULL;
 }
 
-void jbd2_journal_free_transaction(transaction_t *transaction)
+void jbd2_journal_free_transaction(transaction_t *transaction) // 事务释放空间
 {
 	if (unlikely(ZERO_OR_NULL_PTR(transaction)))
 		return;
@@ -834,7 +834,7 @@ EXPORT_SYMBOL(jbd2_journal_restart);
  */
 void jbd2_journal_wait_updates(journal_t *journal)
 {
-	DEFINE_WAIT(wait);
+	DEFINE_WAIT(wait); // 用当前进程创建等待队列成员
 
 	while (1) {
 		/*
@@ -854,7 +854,7 @@ void jbd2_journal_wait_updates(journal_t *journal)
 
 		prepare_to_wait(&journal->j_wait_updates, &wait,
 				TASK_UNINTERRUPTIBLE);
-		if (!atomic_read(&transaction->t_updates)) {
+		if (!atomic_read(&transaction->t_updates)) { // 如果这个事务上没有handle则跳出
 			finish_wait(&journal->j_wait_updates, &wait);
 			break;
 		}
@@ -1063,7 +1063,7 @@ repeat:
 	 * doesn't get written to disk before the caller actually commits the
 	 * new data
 	 */
-	if (!jh->b_transaction) {
+	if (!jh->b_transaction) { // 如果这个jh没有在某个事务管理中，则加入当前running的事务中管理，因为transcation是starthandle传进来的
 		JBUFFER_TRACE(jh, "no transaction");
 		J_ASSERT_JH(jh, !jh->b_next_transaction);
 		JBUFFER_TRACE(jh, "file as BJ_Reserved");
@@ -1101,7 +1101,7 @@ repeat:
 	 * primary copy is already going to disk then we cannot do copy-out
 	 * here.
 	 */
-	if (buffer_shadow(bh)) {
+	if (buffer_shadow(bh)) { // 在影子队列上，说明元数据在下io，阻塞等待,重新搞
 		JBUFFER_TRACE(jh, "on shadow: sleep");
 		spin_unlock(&jh->b_state_lock);
 		wait_on_bit_io(&bh->b_state, BH_Shadow, TASK_UNINTERRUPTIBLE);
@@ -1120,7 +1120,7 @@ repeat:
 	 * committed_data record after the transaction, so we HAVE to force the
 	 * frozen_data copy in that case.
 	 */
-	if (jh->b_jlist == BJ_Metadata || force_copy) {
+	if (jh->b_jlist == BJ_Metadata || force_copy) { // 如果在元数据链表上，则拷贝一封副本
 		JBUFFER_TRACE(jh, "generate frozen data");
 		if (!frozen_buffer) {
 			JBUFFER_TRACE(jh, "allocate memory for buffer");
@@ -1131,7 +1131,7 @@ repeat:
 		}
 		jh->b_frozen_data = frozen_buffer;
 		frozen_buffer = NULL;
-		jbd2_freeze_jh_data(jh);
+		jbd2_freeze_jh_data(jh); // 拷贝数据到冻结的这个变量
 	}
 attach_next:
 	/*
@@ -1140,7 +1140,7 @@ attach_next:
 	 * in jbd2_write_access_granted()
 	 */
 	smp_wmb();
-	jh->b_next_transaction = transaction;
+	jh->b_next_transaction = transaction; // 说明接下来我可能要进行这个元数据块的操作
 
 done:
 	spin_unlock(&jh->b_state_lock);
@@ -1268,7 +1268,7 @@ int jbd2_journal_get_create_access(handle_t *handle, struct buffer_head *bh)
 {
 	transaction_t *transaction = handle->h_transaction;
 	journal_t *journal;
-	struct journal_head *jh = jbd2_journal_add_journal_head(bh);
+	struct journal_head *jh = jbd2_journal_add_journal_head(bh); // 如果bh没有关联jh将新创建的bh和jh建立链接
 	int err;
 
 	jbd_debug(5, "journal_head %p\n", jh);
@@ -1304,21 +1304,21 @@ int jbd2_journal_get_create_access(handle_t *handle, struct buffer_head *bh)
 		 * the buffer so the transaction freeing it must have
 		 * committed and so it's safe to clear the dirty bit.
 		 */
-		clear_buffer_dirty(jh2bh(jh));
+		clear_buffer_dirty(jh2bh(jh)); // 如果jh都没有相关联的transaction说明是刚刚创建的bh，清除dirty标记位
 		/* first access by this transaction */
 		jh->b_modified = 0;
 
 		JBUFFER_TRACE(jh, "file as BJ_Reserved");
 		spin_lock(&journal->j_list_lock);
-		__jbd2_journal_file_buffer(jh, transaction, BJ_Reserved);
+		__jbd2_journal_file_buffer(jh, transaction, BJ_Reserved); // 加入BJ_Reserved链表中，并且将引用计数++
 		spin_unlock(&journal->j_list_lock);
-	} else if (jh->b_transaction == journal->j_committing_transaction) {
+	} else if (jh->b_transaction == journal->j_committing_transaction) { // jh属于正在提交的事务中,要将新的操作对应的transaction备份到新的b_next_transaction
 		/* first access by this transaction */
 		jh->b_modified = 0;
 
 		JBUFFER_TRACE(jh, "set next transaction");
 		spin_lock(&journal->j_list_lock);
-		jh->b_next_transaction = transaction;
+		jh->b_next_transaction = transaction; // 将放入next_transaction中
 		spin_unlock(&journal->j_list_lock);
 	}
 	spin_unlock(&jh->b_state_lock);
@@ -1331,9 +1331,9 @@ int jbd2_journal_get_create_access(handle_t *handle, struct buffer_head *bh)
 	 * which hits an assertion error.
 	 */
 	JBUFFER_TRACE(jh, "cancelling revoke");
-	jbd2_journal_cancel_revoke(handle, jh);
+	jbd2_journal_cancel_revoke(handle, jh); // 如果在revokelist中因为是新操作所以要移出revokelist
 out:
-	jbd2_journal_put_journal_head(jh);
+	jbd2_journal_put_journal_head(jh); // 在上面的__jbd2_journal_file_buffer函数中会增加引用技术
 	return err;
 }
 
@@ -1919,7 +1919,7 @@ int jbd2_journal_stop(handle_t *handle)
 		jbd_debug(2, "transaction too old, requesting commit for "
 					"handle %p\n", handle);
 		/* This is non-blocking */
-		jbd2_log_start_commit(journal, tid);
+		jbd2_log_start_commit(journal, tid); // 开始进行日志提交，因为需要将本次事务提交进去，所以target是当前的squence的值
 
 		/*
 		 * Special case: JBD2_SYNC synchronous updates require us
@@ -1938,7 +1938,7 @@ int jbd2_journal_stop(handle_t *handle)
 	stop_this_handle(handle);
 
 	if (wait_for_commit)
-		err = jbd2_log_wait_commit(journal, tid);
+		err = jbd2_log_wait_commit(journal, tid); // 等待事务提交到本次tid
 
 free_and_exit:
 	if (handle->h_rsv_handle)
@@ -2010,7 +2010,7 @@ __blist_del_buffer(struct journal_head **list, struct journal_head *jh)
  *
  * Called under j_list_lock.
  */
-static void __jbd2_journal_temp_unlink_buffer(struct journal_head *jh)
+static void __jbd2_journal_temp_unlink_buffer(struct journal_head *jh) // 断开jh中的bh和transaction的链接(临时）
 {
 	struct journal_head **list = NULL;
 	transaction_t *transaction;
@@ -2489,7 +2489,7 @@ int jbd2_journal_invalidate_folio(journal_t *journal, struct folio *folio,
 }
 
 /*
- * File a buffer on the given transaction list.
+ * File a buffer on the given transaction list. // 把jh挂载某个链表上
  */
 void __jbd2_journal_file_buffer(struct journal_head *jh,
 			transaction_t *transaction, int jlist)
@@ -2530,7 +2530,7 @@ void __jbd2_journal_file_buffer(struct journal_head *jh,
 		jbd2_journal_grab_journal_head(bh);
 	jh->b_transaction = transaction;
 
-	switch (jlist) {
+	switch (jlist) { // 选择list
 	case BJ_None:
 		J_ASSERT_JH(jh, !jh->b_committed_data);
 		J_ASSERT_JH(jh, !jh->b_frozen_data);
@@ -2550,8 +2550,8 @@ void __jbd2_journal_file_buffer(struct journal_head *jh,
 		break;
 	}
 
-	__blist_add_buffer(list, jh);
-	jh->b_jlist = jlist;
+	__blist_add_buffer(list, jh); // 挂入
+	jh->b_jlist = jlist; // 记录自己在哪个list上
 
 	if (was_dirty)
 		set_buffer_jbddirty(bh);
@@ -2580,7 +2580,7 @@ void jbd2_journal_file_buffer(struct journal_head *jh,
  * and the caller has to drop jh reference through
  * jbd2_journal_put_journal_head().
  */
-bool __jbd2_journal_refile_buffer(struct journal_head *jh)
+bool __jbd2_journal_refile_buffer(struct journal_head *jh) // 将jh从transaction上拖链,如果b_next_transaction有值，则挂到b_next_transaction上，并将b_transaction=b_next_transaction,b_next_transaction=NULL
 {
 	int was_dirty, jlist;
 	struct buffer_head *bh = jh2bh(jh);

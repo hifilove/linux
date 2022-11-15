@@ -319,7 +319,7 @@ static void allocate_buf_for_compression(void)
 	if (IS_ERR_OR_NULL(ctx)) {
 		kfree(buf);
 		pr_err("crypto_alloc_comp('%s') failed: %ld\n", zbackend->name,
-		       PTR_ERR(ctx));
+		       PTR_ERR_OR_ZERO(ctx));
 		return;
 	}
 

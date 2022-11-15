@@ -2747,7 +2747,7 @@ retry:
 					    0, NULL, EXT4_HT_DIR, credits);
 	handle = ext4_journal_current_handle();
 	err = PTR_ERR(inode);
-	if (!IS_ERR(inode)) {
+	if (!IS_ERR(inode)) { // inode分配成功将操作函数和inode关联起来
 		inode->i_op = &ext4_file_inode_operations;
 		inode->i_fop = &ext4_file_operations;
 		ext4_set_aops(inode);

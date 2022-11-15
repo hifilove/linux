@@ -133,7 +133,7 @@ typedef struct journal_header_s
 {
 	__be32		h_magic;
 	__be32		h_blocktype;
-	__be32		h_sequence;
+	__be32		h_sequence; // tid
 } journal_header_t;
 
 /*
@@ -237,8 +237,8 @@ typedef struct journal_superblock_s
 
 /* 0x0018 */
 	/* Dynamic information describing the current state of the log */
-	__be32	s_sequence;		/* first commit ID expected in log */
-	__be32	s_start;		/* blocknr of start of log */
+	__be32	s_sequence;		/* first commit ID expected in log */ // 日志区第一个未重演的事务的id
+	__be32	s_start;		/* blocknr of start of log */ // 日志区第一个未重演的事务的逻辑块号，如果==0则表示日志空
 
 /* 0x0020 */
 	/* Error value, as set by jbd2_journal_abort(). */
@@ -564,7 +564,7 @@ struct transaction_s
 	journal_t		*t_journal;
 
 	/* Sequence number for this transaction [no locking] */
-	tid_t			t_tid;
+	tid_t			t_tid; // 当前sequence number
 
 	/*
 	 * Transaction's current state
@@ -602,32 +602,32 @@ struct transaction_s
 	 * modified by this transaction [j_list_lock, no locks needed fo
 	 * jbd2 thread]
 	 */
-	struct journal_head	*t_reserved_list;
+	struct journal_head	*t_reserved_list; // BJ_Reserved bh list 只是先挂着，后面可能使用,未修改的bh
 
 	/*
 	 * Doubly-linked circular list of all metadata buffers owned by this
 	 * transaction [j_list_lock, no locks needed for jbd2 thread]
 	 */
-	struct journal_head	*t_buffers;
+	struct journal_head	*t_buffers; // BJ_Metadata bh list
 
 	/*
 	 * Doubly-linked circular list of all forget buffers (superseded
 	 * buffers which we can un-checkpoint once this transaction commits)
 	 * [j_list_lock]
 	 */
-	struct journal_head	*t_forget;
+	struct journal_head	*t_forget; // BJ_Forget bh list
 
 	/*
 	 * Doubly-linked circular list of all buffers still to be flushed before
 	 * this transaction can be checkpointed. [j_list_lock]
 	 */
-	struct journal_head	*t_checkpoint_list;
+	struct journal_head	*t_checkpoint_list; // 事务中等待被写回的jh并update的双向list
 
 	/*
 	 * Doubly-linked circular list of all buffers submitted for IO while
 	 * checkpointing. [j_list_lock]
 	 */
-	struct journal_head	*t_checkpoint_io_list;
+	struct journal_head	*t_checkpoint_io_list; // 等待io提交的bh链表，提交后bh中的标记up_date,在transcation被checkpoint的时候会使用
 
 	/*
 	 * Doubly-linked circular list of metadata buffers being
@@ -636,7 +636,7 @@ struct transaction_s
 	 * one at all times. [j_list_lock, no locks needed for jbd2
 	 * thread]
 	 */
-	struct journal_head	*t_shadow_list;
+	struct journal_head	*t_shadow_list; // BJ_Shadow bh list
 
 	/*
 	 * List of inodes associated with the transaction; e.g., ext4 uses
@@ -644,7 +644,7 @@ struct transaction_s
 	 * need special handling on transaction commit; also used by ocfs2.
 	 * [j_list_lock]
 	 */
-	struct list_head	t_inode_list;
+	struct list_head	t_inode_list; // 在本个transcation中所做的修改的inode在这个链表中
 
 	/*
 	 * Protects info related to handles
@@ -659,12 +659,12 @@ struct transaction_s
 	/*
 	 * When transaction started
 	 */
-	unsigned long		t_start;
+	unsigned long		t_start; // 日志被提交的开始时间
 
 	/*
 	 * When commit was requested [j_state_lock]
 	 */
-	unsigned long		t_requested;
+	unsigned long		t_requested; // 事务提交请求的时间点
 
 	/*
 	 * Checkpointing stats [j_list_lock]
@@ -675,7 +675,7 @@ struct transaction_s
 	 * Number of outstanding updates running on this transaction
 	 * [none]
 	 */
-	atomic_t		t_updates;
+	atomic_t		t_updates; // 使用这个transaction的handle计数
 
 	/*
 	 * Number of blocks reserved for this transaction in the journal.
@@ -706,7 +706,7 @@ struct transaction_s
 	 * When will the transaction expire (become due for commit), in jiffies?
 	 * [no locking]
 	 */
-	unsigned long		t_expires;
+	unsigned long		t_expires; // 事务的到期时间
 
 	/*
 	 * When this transaction started, in nanoseconds [no locking]
@@ -842,7 +842,7 @@ struct journal_s
 	 * the transaction we are pushing to disk
 	 * [j_state_lock] [caller holding open handle]
 	 */
-	transaction_t		*j_committing_transaction;
+	transaction_t		*j_committing_transaction; // 未知：正在提交的transaction
 
 	/**
 	 * @j_checkpoint_transactions:
@@ -850,7 +850,7 @@ struct journal_s
 	 * ... and a linked circular list of all transactions waiting for
 	 * checkpointing. [j_list_lock]
 	 */
-	transaction_t		*j_checkpoint_transactions;
+	transaction_t		*j_checkpoint_transactions; // 需要被checkpointd的事务的链表
 
 	/**
 	 * @j_wait_transaction_locked:
@@ -863,17 +863,17 @@ struct journal_s
 	/**
 	 * @j_wait_done_commit: Wait queue for waiting for commit to complete.
 	 */
-	wait_queue_head_t	j_wait_done_commit;
+	wait_queue_head_t	j_wait_done_commit; // 如果当前handle->h_sync被置为，加入这个等待队列等待，等待handle加入的transcation进行提交，提交完成后唤醒等待进程,需要将本个事务同步commit的进程的等待队列
 
 	/**
 	 * @j_wait_commit: Wait queue to trigger commit.
 	 */
-	wait_queue_head_t	j_wait_commit;
+	wait_queue_head_t	j_wait_commit; // 等待提交事务的进程,也就是kjournald2内核进程
 
 	/**
 	 * @j_wait_updates: Wait queue to wait for updates to complete.
 	 */
-	wait_queue_head_t	j_wait_updates;
+	wait_queue_head_t	j_wait_updates; // 在提交事务的时候如果有handle还在使用这个transaction上，则会在这个等待队列头上，挂起自身进行等待
 
 	/**
 	 * @j_wait_reserved:
@@ -935,7 +935,7 @@ struct journal_s
 	 * Journal head: identifies the first unused block in the journal.
 	 * [j_state_lock]
 	 */
-	unsigned long		j_head;
+	unsigned long		j_head; // journal中最开始没有使用的块
 
 	/**
 	 * @j_tail:
@@ -943,7 +943,7 @@ struct journal_s
 	 * Journal tail: identifies the oldest still-used block in the journal.
 	 * [j_state_lock]
 	 */
-	unsigned long		j_tail;
+	unsigned long		j_tail; // 未被重演的日志最开始的块
 
 	/**
 	 * @j_free:
@@ -959,7 +959,7 @@ struct journal_s
 	 * The block number of the first usable block in the journal
 	 * [j_state_lock].
 	 */
-	unsigned long		j_first;
+	unsigned long		j_first; // journal区开始的block
 
 	/**
 	 * @j_last:
@@ -1039,7 +1039,7 @@ struct journal_s
 	/**
 	 * @j_list_lock: Protects the buffer lists and internal buffer state.
 	 */
-	spinlock_t		j_list_lock;
+	spinlock_t		j_list_lock; // 保护transaction的list的锁
 
 	/**
 	 * @j_inode:
@@ -1054,14 +1054,14 @@ struct journal_s
 	 *
 	 * Sequence number of the oldest transaction in the log [j_state_lock]
 	 */
-	tid_t			j_tail_sequence;
+	tid_t			j_tail_sequence; // 最早的没有被重演的事务
 
 	/**
 	 * @j_transaction_sequence:
 	 *
 	 * Sequence number of the next transaction to grant [j_state_lock]
 	 */
-	tid_t			j_transaction_sequence;
+	tid_t			j_transaction_sequence; // 下一个事务使用的tid号，tune2fs日志重演中修复的那个问题
 
 	/**
 	 * @j_commit_sequence:
@@ -1069,7 +1069,7 @@ struct journal_s
 	 * Sequence number of the most recently committed transaction
 	 * [j_state_lock, no lock for quick racy checks]
 	 */
-	tid_t			j_commit_sequence;
+	tid_t			j_commit_sequence; // 已经提交的最新的事务的编号
 
 	/**
 	 * @j_commit_request:
@@ -1077,7 +1077,7 @@ struct journal_s
 	 * Sequence number of the most recent transaction wanting commit
 	 * [j_state_lock, no lock for quick racy checks]
 	 */
-	tid_t			j_commit_request;
+	tid_t			j_commit_request; // 最近请求提交的事务的编号
 
 	/**
 	 * @j_uuid:
@@ -1114,7 +1114,7 @@ struct journal_s
 	 *
 	 * What is the maximum transaction lifetime before we begin a commit?
 	 */
-	unsigned long		j_commit_interval;
+	unsigned long		j_commit_interval; // 一个事务最大的存活时间
 
 	/**
 	 * @j_commit_timer: The timer used to wakeup the commit thread.
@@ -1132,17 +1132,17 @@ struct journal_s
 	 * The revoke table - maintains the list of revoked blocks in the
 	 * current transaction.
 	 */
-	struct jbd2_revoke_table_s *j_revoke;
+	struct jbd2_revoke_table_s *j_revoke; // 指向真正选中的revoke hash表
 
 	/**
 	 * @j_revoke_table: Alternate revoke tables for j_revoke.
 	 */
-	struct jbd2_revoke_table_s *j_revoke_table[2];
+	struct jbd2_revoke_table_s *j_revoke_table[2]; // 管理revoke的块的哈希链表（2个
 
 	/**
 	 * @j_wbuf: Array of bhs for jbd2_journal_commit_transaction.
 	 */
-	struct buffer_head	**j_wbuf;
+	struct buffer_head	**j_wbuf; // 在transaction提交的时候保存需要提交到日志区的bh的地址
 
 	/**
 	 * @j_fc_wbuf: Array of fast commit bhs for fast commit. Accessed only
@@ -1156,7 +1156,7 @@ struct journal_s
 	 *
 	 * Size of @j_wbuf array.
 	 */
-	int			j_wbufsize;
+	int			j_wbufsize; // 一次commit允许提交最多的bh个数
 
 	/**
 	 * @j_fc_wbufsize:

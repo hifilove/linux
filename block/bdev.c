@@ -192,7 +192,7 @@ EXPORT_SYMBOL_GPL(sync_blockdev_nowait);
  * Write out and wait upon all the dirty data associated with a block
  * device via its mapping.  Does not take the superblock lock.
  */
-int sync_blockdev(struct block_device *bdev)
+int sync_blockdev(struct block_device *bdev) // 阻塞同步
 {
 	if (!bdev)
 		return 0;

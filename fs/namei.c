@@ -4856,6 +4856,7 @@ put_names:
 SYSCALL_DEFINE5(renameat2, int, olddfd, const char __user *, oldname,
 		int, newdfd, const char __user *, newname, unsigned int, flags)
 {
+	printk("in fun syscall_define2 renameat2\n");
 	return do_renameat2(olddfd, getname(oldname), newdfd, getname(newname),
 				flags);
 }

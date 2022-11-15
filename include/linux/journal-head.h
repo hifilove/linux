@@ -43,7 +43,7 @@ struct journal_head {
 	 * very unuseful) make 64-bit accesses to the bitfield and clobber
 	 * b_jcount if its update races with bitfield modification.
 	 */
-	unsigned b_jlist;
+	unsigned b_jlist; // 本jh所在的transaction的哪个链表上
 
 	/*
 	 * This flag signals the buffer has been modified by
@@ -56,14 +56,14 @@ struct journal_head {
 	 * Copy of the buffer data frozen for writing to the log.
 	 * [b_state_lock]
 	 */
-	char *b_frozen_data;
+	char *b_frozen_data; // 备份正在commit的transaction的bh
 
 	/*
 	 * Pointer to a saved copy of the buffer containing no uncommitted
 	 * deallocation references, so that allocations can avoid overwriting
 	 * uncommitted deletes. [b_state_lock]
 	 */
-	char *b_committed_data;
+	char *b_committed_data; // metadata获取权限时，备份bh使用在获取权限之后备份,未知：盘上的数据？
 
 	/*
 	 * Pointer to the compound transaction which owns this buffer's

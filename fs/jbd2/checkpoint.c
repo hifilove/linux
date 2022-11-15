@@ -413,7 +413,7 @@ int jbd2_cleanup_journal_tail(journal_t *journal)
  *
  * Find all the written-back checkpoint buffers in the given list and
  * release them. If 'destroy' is set, clean all buffers unconditionally.
- *
+ * // 在指定的list中找到已经被checkpointd的buffer并释放它
  * Called with j_list_lock held.
  * Returns 1 if we freed the transaction, 0 otherwise.
  */
@@ -430,10 +430,10 @@ static int journal_clean_one_cp_list(struct journal_head *jh, bool destroy)
 		jh = next_jh;
 		next_jh = jh->b_cpnext;
 
-		if (!destroy && __cp_buffer_busy(jh))
+		if (!destroy && __cp_buffer_busy(jh)) // 这里已经判断jh是不是update了
 			return 0;
 
-		if (__jbd2_journal_remove_checkpoint(jh))
+		if (__jbd2_journal_remove_checkpoint(jh)) // 已经update，或强制destroy的的jh进行脱链管理
 			return 1;
 		/*
 		 * This function only frees up some memory
@@ -628,7 +628,7 @@ void __jbd2_journal_clean_checkpoint_list(journal_t *journal, bool destroy)
 		 */
 		if (!ret)
 			return;
-	} while (transaction != last_transaction);
+	} while (transaction != last_transaction); // 循环遍历checkpoint链表
 }
 
 /*
@@ -777,7 +777,7 @@ void __jbd2_journal_insert_checkpoint(struct journal_head *jh,
  * Called with j_list_lock held.
  */
 
-void __jbd2_journal_drop_transaction(journal_t *journal, transaction_t *transaction)
+void __jbd2_journal_drop_transaction(journal_t *journal, transaction_t *transaction) // 事务脱链
 {
 	assert_spin_locked(&journal->j_list_lock);
 

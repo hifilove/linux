@@ -27,11 +27,11 @@
  */
 struct recovery_info
 {
-	tid_t		start_transaction;
-	tid_t		end_transaction;
+	tid_t		start_transaction; // 开始的事务
+	tid_t		end_transaction; // 最后一个事务
 
-	int		nr_replays;
-	int		nr_revokes;
+	int		nr_replays; // 已经重演的块数量
+	int		nr_revokes; // 撤销块的数量
 	int		nr_revoke_hits;
 };
 
@@ -296,14 +296,14 @@ int jbd2_journal_recover(journal_t *journal)
 	 * unmounted.
 	 */
 
-	if (!sb->s_start) {
+	if (!sb->s_start) { // 如果是0，说明没有日志，就不进行重演;
 		jbd_debug(1, "No recovery required, last transaction %d\n",
 			  be32_to_cpu(sb->s_sequence));
 		journal->j_transaction_sequence = be32_to_cpu(sb->s_sequence) + 1;
 		return 0;
 	}
 
-	err = do_one_pass(journal, &info, PASS_SCAN);
+	err = do_one_pass(journal, &info, PASS_SCAN); // 扫描日志信息记录在info中
 	if (!err)
 		err = do_one_pass(journal, &info, PASS_REVOKE);
 	if (!err)
@@ -317,10 +317,10 @@ int jbd2_journal_recover(journal_t *journal)
 
 	/* Restart the log at the next transaction ID, thus invalidating
 	 * any existing commit records in the log. */
-	journal->j_transaction_sequence = ++info.end_transaction;
+	journal->j_transaction_sequence = ++info.end_transaction; // 日志最新一次提交的tid++给最新的事务需要使用的tid
 
-	jbd2_journal_clear_revoke(journal);
-	err2 = sync_blockdev(journal->j_fs_dev);
+	jbd2_journal_clear_revoke(journal); // 清空日志重演临时使用的revokelist
+	err2 = sync_blockdev(journal->j_fs_dev); // 落盘到日志设备上
 	if (!err)
 		err = err2;
 	/* Make sure all replayed data is on permanent storage */
@@ -520,12 +520,12 @@ static int do_one_pass(journal_t *journal,
 		 * record. */
 
 		jbd_debug(3, "JBD2: checking block %ld\n", next_log_block);
-		err = jread(&bh, journal, next_log_block);
+		err = jread(&bh, journal, next_log_block); // 读出一个bh
 		if (err)
 			goto failed;
 
 		next_log_block++;
-		wrap(journal, next_log_block);
+		wrap(journal, next_log_block); // 环形缓冲区，超出后重头开始
 
 		/* What kind of buffer is it?
 		 *
@@ -533,9 +533,9 @@ static int do_one_pass(journal_t *journal,
 		 * expected sequence number.  Otherwise, we're all done
 		 * here. */
 
-		tmp = (journal_header_t *)bh->b_data;
+		tmp = (journal_header_t *)bh->b_data; // bh对应的数据
 
-		if (tmp->h_magic != cpu_to_be32(JBD2_MAGIC_NUMBER)) {
+		if (tmp->h_magic != cpu_to_be32(JBD2_MAGIC_NUMBER)) { // 魔术值对不上
 			brelse(bh);
 			break;
 		}
@@ -545,7 +545,7 @@ static int do_one_pass(journal_t *journal,
 		jbd_debug(3, "Found magic %d, sequence %d\n",
 			  blocktype, sequence);
 
-		if (sequence != next_commit_ID) {
+		if (sequence != next_commit_ID) { // 当前的tid不等于上一个循环的tid的下一个
 			brelse(bh);
 			break;
 		}
@@ -555,7 +555,7 @@ static int do_one_pass(journal_t *journal,
 		 * to do with it?  That depends on the pass... */
 
 		switch(blocktype) {
-		case JBD2_DESCRIPTOR_BLOCK:
+		case JBD2_DESCRIPTOR_BLOCK: // 描述块
 			/* Verify checksum first */
 			if (jbd2_journal_has_csum_v2or3(journal))
 				descr_csum_size =
@@ -598,7 +598,7 @@ static int do_one_pass(journal_t *journal,
 					put_bh(bh);
 					continue;
 				}
-				next_log_block += count_tags(journal, bh);
+				next_log_block += count_tags(journal, bh); // 计算这个描述块中有几个tags
 				wrap(journal, next_log_block);
 				put_bh(bh);
 				continue;
@@ -636,7 +636,7 @@ static int do_one_pass(journal_t *journal,
 
 					/* If the block has been
 					 * revoked, then we're all done
-					 * here. */
+					 * here. */ // 是要被revoke的块
 					if (jbd2_journal_test_revoke
 					    (journal, blocknr,
 					     next_commit_ID)) {
@@ -675,7 +675,7 @@ static int do_one_pass(journal_t *journal,
 					}
 
 					lock_buffer(nbh);
-					memcpy(nbh->b_data, obh->b_data,
+					memcpy(nbh->b_data, obh->b_data, // 将元数据落cache中
 							journal->j_blocksize);
 					if (flags & JBD2_FLAG_ESCAPE) {
 						*((__be32 *)nbh->b_data) =
@@ -683,8 +683,8 @@ static int do_one_pass(journal_t *journal,
 					}
 
 					BUFFER_TRACE(nbh, "marking dirty");
-					set_buffer_uptodate(nbh);
-					mark_buffer_dirty(nbh);
+					set_buffer_uptodate(nbh); // 置已经跟新
+					mark_buffer_dirty(nbh); // 置脏
 					BUFFER_TRACE(nbh, "marking uptodate");
 					++info->nr_replays;
 					/* ll_rw_block(WRITE, 1, &nbh); */
@@ -705,7 +705,7 @@ static int do_one_pass(journal_t *journal,
 			brelse(bh);
 			continue;
 
-		case JBD2_COMMIT_BLOCK:
+		case JBD2_COMMIT_BLOCK: // 提交块
 			/*     How to differentiate between interrupted commit
 			 *               and journal corruption ?
 			 *
@@ -815,10 +815,10 @@ static int do_one_pass(journal_t *journal,
 			if (pass == PASS_SCAN)
 				last_trans_commit_time = commit_time;
 			brelse(bh);
-			next_commit_ID++;
+			next_commit_ID++; // 遇到提交块说明这个事务结束了,next_commit_ID需要++，用于和下一个循环的读出来的block进行对比
 			continue;
 
-		case JBD2_REVOKE_BLOCK:
+		case JBD2_REVOKE_BLOCK: // 撤销块
 			/*
 			 * Check revoke block crc in pass_scan, if csum verify
 			 * failed, check commit block time later.
@@ -837,7 +837,7 @@ static int do_one_pass(journal_t *journal,
 				continue;
 			}
 
-			err = scan_revoke_records(journal, bh,
+			err = scan_revoke_records(journal, bh, // 将所有的revoke块添加到内存中
 						  next_commit_ID, info);
 			brelse(bh);
 			if (err)
@@ -860,9 +860,9 @@ static int do_one_pass(journal_t *journal,
 	 * transaction marks the end of the valid log.
 	 */
 
-	if (pass == PASS_SCAN) {
+	if (pass == PASS_SCAN) { // 在第一次do_one_pass中进行
 		if (!info->end_transaction)
-			info->end_transaction = next_commit_ID;
+			info->end_transaction = next_commit_ID; // 将日志区最近一次提交的tid保存在end_transaction中
 	} else {
 		/* It's really bad news if different passes end up at
 		 * different places (but possible due to IO errors). */

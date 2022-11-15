@@ -206,11 +206,11 @@ loop:
 	jbd_debug(1, "commit_sequence=%u, commit_request=%u\n",
 		journal->j_commit_sequence, journal->j_commit_request);
 
-	if (journal->j_commit_sequence != journal->j_commit_request) {
+	if (journal->j_commit_sequence != journal->j_commit_request) { // 如果已经提交的id和请求的id不一样就进行提交
 		jbd_debug(1, "OK, requests differ\n");
 		write_unlock(&journal->j_state_lock);
 		del_timer_sync(&journal->j_commit_timer);
-		jbd2_journal_commit_transaction(journal);
+		jbd2_journal_commit_transaction(journal); // 关键事务提交函数
 		write_lock(&journal->j_state_lock);
 		goto loop;
 	}
@@ -484,7 +484,7 @@ repeat:
 int __jbd2_log_start_commit(journal_t *journal, tid_t target)
 {
 	/* Return if the txn has already requested to be committed */
-	if (journal->j_commit_request == target)
+	if (journal->j_commit_request == target) // 表示当前事务已经提交到了目标编号
 		return 0;
 
 	/*
@@ -499,12 +499,12 @@ int __jbd2_log_start_commit(journal_t *journal, tid_t target)
 		 * commit thread.  We do _not_ do the commit ourselves.
 		 */
 
-		journal->j_commit_request = target;
+		journal->j_commit_request = target; // 事务需要被提交到当前running的事务编号
 		jbd_debug(1, "JBD2: requesting commit %u/%u\n",
 			  journal->j_commit_request,
 			  journal->j_commit_sequence);
 		journal->j_running_transaction->t_requested = jiffies;
-		wake_up(&journal->j_wait_commit);
+		wake_up(&journal->j_wait_commit); // 唤醒kjournald2的内核进程
 		return 1;
 	} else if (!tid_geq(journal->j_commit_request, target))
 		/* This should never happen, but if it does, preserve
@@ -689,7 +689,7 @@ int jbd2_log_wait_commit(journal_t *journal, tid_t tid)
 	 * case we cannot block on open handles anymore. So don't warn in that
 	 * case.
 	 */
-	if (tid_gt(tid, journal->j_commit_sequence) &&
+	if (tid_gt(tid, journal->j_commit_sequence) && // 如果tid>j_commit_sequence返回ture
 	    (!journal->j_committing_transaction ||
 	     journal->j_committing_transaction->t_tid != tid)) {
 		read_unlock(&journal->j_state_lock);
@@ -704,13 +704,13 @@ int jbd2_log_wait_commit(journal_t *journal, tid_t tid)
 		       __func__, journal->j_commit_request, tid);
 	}
 #endif
-	while (tid_gt(tid, journal->j_commit_sequence)) {
+	while (tid_gt(tid, journal->j_commit_sequence)) { // 循环调用加入等待队列，直到满足条件
 		jbd_debug(1, "JBD2: want %u, j_commit_sequence=%u\n",
 				  tid, journal->j_commit_sequence);
 		read_unlock(&journal->j_state_lock);
-		wake_up(&journal->j_wait_commit);
+		wake_up(&journal->j_wait_commit); // 唤醒kjournald2进行日志提交
 		wait_event(journal->j_wait_done_commit,
-				!tid_gt(tid, journal->j_commit_sequence));
+				!tid_gt(tid, journal->j_commit_sequence)); // 等待提交的日志到达目标编号
 		read_lock(&journal->j_state_lock);
 	}
 	read_unlock(&journal->j_state_lock);
@@ -1008,12 +1008,12 @@ jbd2_journal_get_descriptor_buffer(transaction_t *transaction, int type)
 	journal_header_t *header;
 	int err;
 
-	err = jbd2_journal_next_log_block(journal, &blocknr);
+	err = jbd2_journal_next_log_block(journal, &blocknr); // 获得第一个空块的物理block号，内部有逻辑块和物理块的转发
 
 	if (err)
 		return NULL;
 
-	bh = __getblk(journal->j_dev, blocknr, journal->j_blocksize);
+	bh = __getblk(journal->j_dev, blocknr, journal->j_blocksize); // 未知：读出指定物理块的bh
 	if (!bh)
 		return NULL;
 	atomic_dec(&transaction->t_outstanding_credits);
@@ -1589,7 +1589,7 @@ static int journal_reset(journal_t *journal)
 		 * must make sure information about current log tail is on
 		 * disk before that.
 		 */
-		jbd2_journal_update_sb_log_tail(journal,
+		jbd2_journal_update_sb_log_tail(journal, // 跟新jsb中的数据阻塞落盘
 						journal->j_tail_sequence,
 						journal->j_tail,
 						REQ_SYNC | REQ_FUA);
@@ -1602,7 +1602,7 @@ static int journal_reset(journal_t *journal)
  * This function expects that the caller will have locked the journal
  * buffer head, and will return with it unlocked
  */
-static int jbd2_write_superblock(journal_t *journal, int write_flags)
+static int jbd2_write_superblock(journal_t *journal, int write_flags) // 阻塞等jsb落盘
 {
 	struct buffer_head *bh = journal->j_sb_buffer;
 	journal_superblock_t *sb = journal->j_superblock;
@@ -1683,7 +1683,7 @@ int jbd2_journal_update_sb_log_tail(journal_t *journal, tid_t tail_tid,
 
 	lock_buffer(journal->j_sb_buffer);
 	sb->s_sequence = cpu_to_be32(tail_tid);
-	sb->s_start    = cpu_to_be32(tail_block);
+	sb->s_start    = cpu_to_be32(tail_block); // 日志重演不会赋值0
 
 	ret = jbd2_write_superblock(journal, write_op);
 	if (ret)
@@ -2083,7 +2083,7 @@ int jbd2_journal_load(journal_t *journal)
 
 	/* Let the recovery code check whether it needs to recover any
 	 * data from the journal. */
-	if (jbd2_journal_recover(journal))
+	if (jbd2_journal_recover(journal)) // 日志重演
 		goto recovery_error;
 
 	if (journal->j_failed_commit) {
@@ -2101,7 +2101,7 @@ int jbd2_journal_load(journal_t *journal)
 	/* OK, we've finished with the dynamic journal bits:
 	 * reinitialise the dynamic contents of the superblock in memory
 	 * and reset them on disk. */
-	if (journal_reset(journal))
+	if (journal_reset(journal)) // 启动日志，其中会创建kjounald2内核进程
 		goto recovery_error;
 
 	journal->j_flags |= JBD2_LOADED;
@@ -2920,7 +2920,7 @@ static void journal_free_journal_head(struct journal_head *jh)
 
 /*
  * Give a buffer_head a journal_head.
- *
+ * // bh和jh关联
  * May sleep.
  */
 struct journal_head *jbd2_journal_add_journal_head(struct buffer_head *bh)
@@ -2947,9 +2947,9 @@ repeat:
 
 		jh = new_jh;
 		new_jh = NULL;		/* We consumed it */
-		set_buffer_jbd(bh);
-		bh->b_private = jh;
-		jh->b_bh = bh;
+		set_buffer_jbd(bh); // 建立jhbh的关联后会被置为
+		bh->b_private = jh; // bh的私有数据是jh
+		jh->b_bh = bh; // 将bh放入jh中
 		get_bh(bh);
 		BUFFER_TRACE(bh, "added journal_head");
 	}
@@ -2978,7 +2978,7 @@ struct journal_head *jbd2_journal_grab_journal_head(struct buffer_head *bh)
 }
 EXPORT_SYMBOL(jbd2_journal_grab_journal_head);
 
-static void __journal_remove_journal_head(struct buffer_head *bh)
+static void __journal_remove_journal_head(struct buffer_head *bh) // 断开jh和bh的关联
 {
 	struct journal_head *jh = bh2jh(bh);
 
@@ -3013,7 +3013,7 @@ static void journal_release_journal_head(struct journal_head *jh, size_t b_size)
  * Drop a reference on the passed journal_head.  If it fell to zero then
  * release the journal_head from the buffer_head.
  */
-void jbd2_journal_put_journal_head(struct journal_head *jh)
+void jbd2_journal_put_journal_head(struct journal_head *jh) // jh和bh断开链接
 {
 	struct buffer_head *bh = jh2bh(jh);
 
@@ -3023,7 +3023,7 @@ void jbd2_journal_put_journal_head(struct journal_head *jh)
 	if (!jh->b_jcount) {
 		__journal_remove_journal_head(bh);
 		jbd_unlock_bh_journal_head(bh);
-		journal_release_journal_head(jh, bh->b_size);
+		journal_release_journal_head(jh, bh->b_size); // 释放jh的空间
 		__brelse(bh);
 	} else {
 		jbd_unlock_bh_journal_head(bh);

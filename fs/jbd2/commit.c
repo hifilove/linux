@@ -43,7 +43,7 @@ static void journal_end_buffer_io_sync(struct buffer_head *bh, int uptodate)
 		smp_mb__after_atomic();
 		wake_up_bit(&orig_bh->b_state, BH_Shadow);
 	}
-	unlock_buffer(bh);
+	unlock_buffer(bh); // io结束解锁
 }
 
 /*
@@ -128,7 +128,7 @@ static int journal_submit_commit_record(journal_t *journal,
 	if (is_journal_aborted(journal))
 		return 0;
 
-	bh = jbd2_journal_get_descriptor_buffer(commit_transaction,
+	bh = jbd2_journal_get_descriptor_buffer(commit_transaction, // 获得一个bh作为提交块
 						JBD2_COMMIT_BLOCK);
 	if (!bh)
 		return 1;
@@ -153,7 +153,7 @@ static int journal_submit_commit_record(journal_t *journal,
 
 	if (journal->j_flags & JBD2_BARRIER &&
 	    !jbd2_has_feature_async_commit(journal))
-		ret = submit_bh(REQ_OP_WRITE,
+		ret = submit_bh(REQ_OP_WRITE, // 提交块落盘
 			REQ_SYNC | REQ_PREFLUSH | REQ_FUA, bh);
 	else
 		ret = submit_bh(REQ_OP_WRITE, REQ_SYNC, bh);
@@ -418,7 +418,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	 */
 
 	/* Do we need to erase the effects of a prior jbd2_journal_flush? */
-	if (journal->j_flags & JBD2_FLUSHED) {
+	if (journal->j_flags & JBD2_FLUSHED) { // 跟新jbdsb
 		jbd_debug(3, "super block updated\n");
 		mutex_lock_io(&journal->j_checkpoint_mutex);
 		/*
@@ -427,7 +427,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 		 * since journal is empty and it is ok for write to be
 		 * flushed only with transaction commit.
 		 */
-		jbd2_journal_update_sb_log_tail(journal,
+		jbd2_journal_update_sb_log_tail(journal, // 将jbdsb阻塞落盘
 						journal->j_tail_sequence,
 						journal->j_tail,
 						REQ_SYNC);
@@ -465,7 +465,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	commit_transaction = journal->j_running_transaction;
 
 	trace_jbd2_start_commit(journal, commit_transaction);
-	jbd_debug(1, "JBD2: starting commit of transaction %d\n",
+	jbd_debug(1, "JBD2: starting commit of transaction %d\n", // 1)等待使用这个事务的handle用完;2)释放没有使用的release_bh;3)检查checkpointd链表中的事务是否有落盘成功的;    T_RUNNING->T_LOCKED->T_SWITCH
 			commit_transaction->t_tid);
 
 	write_lock(&journal->j_state_lock);
@@ -485,7 +485,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 					      stats.run.rs_locked);
 
 	// waits for any t_updates to finish
-	jbd2_journal_wait_updates(journal);
+	jbd2_journal_wait_updates(journal); // wait handle 都使用完
 
 	commit_transaction->t_state = T_SWITCH;
 
@@ -510,7 +510,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	 * We use journal->j_state_lock here to serialize processing of
 	 * t_reserved_list with eviction of buffers from journal_unmap_buffer().
 	 */
-	while (commit_transaction->t_reserved_list) {
+	while (commit_transaction->t_reserved_list) { // 未知：为什么这个用的是running_transaction, 解：只有一个没有提交的commit，也就是说创建一个tran之后中间可以加好多handle，只有在这里才停止对handle的添加。
 		jh = commit_transaction->t_reserved_list;
 		JBUFFER_TRACE(jh, "reserved, unused: refile");
 		/*
@@ -525,7 +525,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 			jh->b_committed_data = NULL;
 			spin_unlock(&jh->b_state_lock);
 		}
-		jbd2_journal_refile_buffer(journal, jh);
+		jbd2_journal_refile_buffer(journal, jh); // 未知：脱链后没有看到对bh的释放
 	}
 
 	write_unlock(&journal->j_state_lock);
@@ -535,10 +535,10 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	 * frees some memory
 	 */
 	spin_lock(&journal->j_list_lock);
-	__jbd2_journal_clean_checkpoint_list(journal, false);
+	__jbd2_journal_clean_checkpoint_list(journal, false); // 对checkpointd链表中所有transaction链表中的每个jh检查是否update，如果是则jh脱t_checkpoint_io_list链，transaction脱checkpointd链
 	spin_unlock(&journal->j_list_lock);
 
-	jbd_debug(3, "JBD2: commit phase 1\n");
+	jbd_debug(3, "JBD2: commit phase 1\n"); // 1)             T_SWITCH->T_FLUSH
 
 	/*
 	 * Clear revoked flag to reflect there is no revoked buffers
@@ -549,7 +549,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	/*
 	 * Switch to a new revoke table.
 	 */
-	jbd2_journal_switch_revoke_table(journal);
+	jbd2_journal_switch_revoke_table(journal); // 启动后备隐藏能源：另一个revoke_hash,用于新的running_transcatin
 
 	/*
 	 * Reserved credits cannot be claimed anymore, free them
@@ -571,18 +571,18 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	wake_up(&journal->j_wait_transaction_locked);
 	write_unlock(&journal->j_state_lock);
 
-	jbd_debug(3, "JBD2: commit phase 2a\n");
+	jbd_debug(3, "JBD2: commit phase 2a\n"); // 1)等待数据块落盘;2)添加revoke块到log_bufs中;      T_FLUSH->T_COMMIT
 
 	/*
 	 * Now start flushing things to disk, in the order they appear
 	 * on the transaction lists.  Data blocks go first.
 	 */
-	err = journal_submit_data_buffers(journal, commit_transaction);
+	err = journal_submit_data_buffers(journal, commit_transaction); // 元数据中对应的的数据块落盘,即数据先于元数据落盘
 	if (err)
 		jbd2_journal_abort(journal, err);
 
 	blk_start_plug(&plug);
-	jbd2_journal_write_revoke_records(commit_transaction, &log_bufs);
+	jbd2_journal_write_revoke_records(commit_transaction, &log_bufs); // revoke块的下io;后面会等待log_bufs中的bh落盘结束
 
 	jbd_debug(3, "JBD2: commit phase 2b\n");
 
@@ -608,7 +608,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	err = 0;
 	bufs = 0;
 	descriptor = NULL;
-	while (commit_transaction->t_buffers) {
+	while (commit_transaction->t_buffers) { // 如果在BJ_Metadata bh list中有数据
 
 		/* Find the next buffer to be journaled... */
 
@@ -640,9 +640,9 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 		if (!descriptor) {
 			J_ASSERT (bufs == 0);
 
-			jbd_debug(4, "JBD2: get descriptor\n");
+			jbd_debug(4, "JBD2: get descriptor\n"); // 1)循环添加描述块和元数据块到wbuf中;1)每添加一个元数据块就将tag加入到描述块中       T_COMMIT
 
-			descriptor = jbd2_journal_get_descriptor_buffer(
+			descriptor = jbd2_journal_get_descriptor_buffer( // 搞出来一个bh作为描述块
 							commit_transaction,
 							JBD2_DESCRIPTOR_BLOCK);
 			if (!descriptor) {
@@ -664,7 +664,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 			/* Record it so that we can wait for IO
                            completion later */
 			BUFFER_TRACE(descriptor, "ph3: file as descriptor");
-			jbd2_file_log_bh(&log_bufs, descriptor);
+			jbd2_file_log_bh(&log_bufs, descriptor); // 将描述符块的缓冲区加入BJ_LogCt链表，下面会写出到日志
 		}
 
 		/* Where is the buffer to be written? */
@@ -695,16 +695,16 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 		 */
 		set_bit(BH_JWrite, &jh2bh(jh)->b_state);
 		JBUFFER_TRACE(jh, "ph3: write metadata");
-		flags = jbd2_journal_write_metadata_buffer(commit_transaction,
+		flags = jbd2_journal_write_metadata_buffer(commit_transaction, // 创建一个新的bh将jh中的bh放入新的bh中的private中，并将jh加入shadow_list中,将新的bh的地址放入wbuf中
 						jh, &wbuf[bufs], blocknr);
 		if (flags < 0) {
 			jbd2_journal_abort(journal, flags);
 			continue;
 		}
-		jbd2_file_log_bh(&io_bufs, wbuf[bufs]);
+		jbd2_file_log_bh(&io_bufs, wbuf[bufs]); // 这里将元数据的bh同时挂载在需要下io的list中
 
 		/* Record the new block's tag in the current descriptor
-                   buffer */
+                   buffer */ // 将新的块的tag记录到描述块中，在描述块中会记录本事务中每个元数据块的位置。
 
 		tag_flag = 0;
 		if (flags & 1)
@@ -713,7 +713,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 			tag_flag |= JBD2_FLAG_SAME_UUID;
 
 		tag = (journal_block_tag_t *) tagp;
-		write_tag_block(journal, tag, jh2bh(jh)->b_blocknr);
+		write_tag_block(journal, tag, jh2bh(jh)->b_blocknr); // 将逻辑块号放在tag->t_blocknr中，详见tag的on_disk结构。
 		tag->t_flags = cpu_to_be16(tag_flag);
 		jbd2_block_tag_csum_set(journal, tag, wbuf[bufs],
 					commit_transaction->t_tid);
@@ -721,7 +721,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 		space_left -= tag_bytes;
 		bufs++;
 
-		if (first_tag) {
+		if (first_tag) { // 如果是最开始的一个tag是需要将uuid记录在tag中的
 			memcpy (tagp, journal->j_uuid, 16);
 			tagp += 16;
 			space_left -= 16;
@@ -731,11 +731,11 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 		/* If there's no more to do, or if the descriptor is full,
 		   let the IO rip! */
 
-		if (bufs == journal->j_wbufsize ||
-		    commit_transaction->t_buffers == NULL ||
-		    space_left < tag_bytes + 16 + csum_size) {
+		if (bufs == journal->j_wbufsize || // 操作一次commit允许提交的bh个数
+		    commit_transaction->t_buffers == NULL || // 这个事务中没有要提交的元数据bh块
+		    space_left < tag_bytes + 16 + csum_size) { // 这个描述符块中的tag已经被记录满
 
-			jbd_debug(4, "JBD2: Submit %d IOs\n", bufs);
+			jbd_debug(4, "JBD2: Submit %d IOs\n", bufs); // 1)将元数据和描述块下io;           T_COMMIT->T_COMMIT_DFLUSH
 
 			/* Write an end-of-descriptor marker before
                            submitting the IOs.  "tag" still points to
@@ -747,7 +747,7 @@ start_journal_io:
 				jbd2_descriptor_block_csum_set(journal,
 							descriptor);
 
-			for (i = 0; i < bufs; i++) {
+			for (i = 0; i < bufs; i++) { // 将记录在wbuf中的每个bh落盘,其中包括描述块和元数据块,在后面会等待完成
 				struct buffer_head *bh = wbuf[i];
 				/*
 				 * Compute checksum.
@@ -757,11 +757,11 @@ start_journal_io:
 					    jbd2_checksum_data(crc32_sum, bh);
 				}
 
-				lock_buffer(bh);
+				lock_buffer(bh); // 获取锁，io结束后解锁
 				clear_buffer_dirty(bh);
 				set_buffer_uptodate(bh);
 				bh->b_end_io = journal_end_buffer_io_sync;
-				submit_bh(REQ_OP_WRITE, REQ_SYNC, bh);
+				submit_bh(REQ_OP_WRITE, REQ_SYNC, bh); // 未知：REQ_SYNC这个标记位是用来干嘛的
 			}
 			cond_resched();
 
@@ -837,19 +837,19 @@ start_journal_io:
 	   so we incur less scheduling load.
 	*/
 
-	jbd_debug(3, "JBD2: commit phase 3\n");
+	jbd_debug(3, "JBD2: commit phase 3\n"); // 1)等待元数据落盘结束;2)将元数据挂载BJ_Forget链表上等待checkpointd;     T_COMMIT_DFLUSH
 
 	while (!list_empty(&io_bufs)) {
 		struct buffer_head *bh = list_entry(io_bufs.prev,
 						    struct buffer_head,
 						    b_assoc_buffers);
 
-		wait_on_buffer(bh);
+		wait_on_buffer(bh); // 等待这个元数据落盘成功
 		cond_resched();
 
 		if (unlikely(!buffer_uptodate(bh)))
 			err = -EIO;
-		jbd2_unfile_log_bh(bh);
+		jbd2_unfile_log_bh(bh); // 从iolist中脱链
 		stats.run.rs_blocks_logged++;
 
 		/*
@@ -859,10 +859,10 @@ start_journal_io:
 		BUFFER_TRACE(bh, "dumping temporary bh");
 		__brelse(bh);
 		J_ASSERT_BH(bh, atomic_read(&bh->b_count) == 0);
-		free_buffer_head(bh);
+		free_buffer_head(bh); // 将bh删除,但是这里是拷贝出来的newbh
 
 		/* We also have to refile the corresponding shadowed buffer */
-		jh = commit_transaction->t_shadow_list->b_tprev;
+		jh = commit_transaction->t_shadow_list->b_tprev; // iolist中bh和shadow中备份的是一一对应的,so这里拿到的是对应的jh
 		bh = jh2bh(jh);
 		clear_buffer_jwrite(bh);
 		J_ASSERT_BH(bh, buffer_jbddirty(bh));
@@ -873,17 +873,17 @@ start_journal_io:
                    we finally commit, we can do any checkpointing
                    required. */
 		JBUFFER_TRACE(jh, "file as BJ_Forget");
-		jbd2_journal_file_buffer(jh, commit_transaction, BJ_Forget);
+		jbd2_journal_file_buffer(jh, commit_transaction, BJ_Forget); // 将已经下io的bh挂在BJ_Forget上，等待checkpointd
 		JBUFFER_TRACE(jh, "brelse shadowed buffer");
 		__brelse(bh);
 	}
 
 	J_ASSERT (commit_transaction->t_shadow_list == NULL);
 
-	jbd_debug(3, "JBD2: commit phase 4\n");
+	jbd_debug(3, "JBD2: commit phase 4\n"); // 1)等待revoke块和描述块落盘成功;       T_COMMIT_DFLUSH
 
 	/* Here we wait for the revoke record and descriptor record buffers */
-	while (!list_empty(&log_bufs)) {
+	while (!list_empty(&log_bufs)) { // 等待revoke块和描述块落盘成功
 		struct buffer_head *bh;
 
 		bh = list_entry(log_bufs.prev, struct buffer_head, b_assoc_buffers);
@@ -895,7 +895,7 @@ start_journal_io:
 
 		BUFFER_TRACE(bh, "ph5: control buffer writeout done: unfile");
 		clear_buffer_jwrite(bh);
-		jbd2_unfile_log_bh(bh);
+		jbd2_unfile_log_bh(bh); // 将已经落盘的块从&log_bufs上脱链
 		stats.run.rs_blocks_logged++;
 		__brelse(bh);		/* One for getblk */
 		/* AKPM: bforget here */
@@ -904,20 +904,20 @@ start_journal_io:
 	if (err)
 		jbd2_journal_abort(journal, err);
 
-	jbd_debug(3, "JBD2: commit phase 5\n");
+	jbd_debug(3, "JBD2: commit phase 5\n"); // 1)提交块落盘结束一次事务提交;     T_COMMIT_DFLUSH->T_COMMIT_JFLUSH
 	write_lock(&journal->j_state_lock);
 	J_ASSERT(commit_transaction->t_state == T_COMMIT_DFLUSH);
 	commit_transaction->t_state = T_COMMIT_JFLUSH;
 	write_unlock(&journal->j_state_lock);
 
 	if (!jbd2_has_feature_async_commit(journal)) {
-		err = journal_submit_commit_record(journal, commit_transaction,
+		err = journal_submit_commit_record(journal, commit_transaction, // 提交块下io
 						&cbh, crc32_sum);
 		if (err)
 			jbd2_journal_abort(journal, err);
 	}
 	if (cbh)
-		err = journal_wait_on_commit_record(journal, cbh);
+		err = journal_wait_on_commit_record(journal, cbh); // 等待提交块落盘
 	stats.run.rs_blocks_logged++;
 	if (jbd2_has_feature_async_commit(journal) &&
 	    journal->j_flags & JBD2_BARRIER) {
@@ -943,7 +943,7 @@ start_journal_io:
            transaction can be removed from any checkpoint list it was on
            before. */
 
-	jbd_debug(3, "JBD2: commit phase 6\n");
+	jbd_debug(3, "JBD2: commit phase 6\n"); // 1)检查forgetlist中的bh是否落盘成功，如果没有则事务加入checkpointd链表中等待checkpointd;    T_COMMIT_JFLUSH
 
 	J_ASSERT(list_empty(&commit_transaction->t_inode_list));
 	J_ASSERT(commit_transaction->t_buffers == NULL);
@@ -1050,7 +1050,7 @@ restart_loop:
 			}
 		}
 
-		if (buffer_jbddirty(bh)) {
+		if (buffer_jbddirty(bh)) { // 如果还是脏页，加入到checkpointlist中
 			JBUFFER_TRACE(jh, "add to new checkpointing trans");
 			__jbd2_journal_insert_checkpoint(jh, commit_transaction);
 			if (is_journal_aborted(journal))
@@ -1070,7 +1070,7 @@ restart_loop:
 				try_to_free = 1;
 		}
 		JBUFFER_TRACE(jh, "refile or unfile buffer");
-		drop_ref = __jbd2_journal_refile_buffer(jh);
+		drop_ref = __jbd2_journal_refile_buffer(jh); // 如果next事务有则挂在next上，如果没有则jh脱链
 		spin_unlock(&jh->b_state_lock);
 		if (drop_ref)
 			jbd2_journal_put_journal_head(jh);
@@ -1102,7 +1102,7 @@ restart_loop:
 	/* Add the transaction to the checkpoint list
 	 * __journal_remove_checkpoint() can not destroy transaction
 	 * under us because it is not marked as T_FINISHED yet */
-	if (journal->j_checkpoint_transactions == NULL) {
+	if (journal->j_checkpoint_transactions == NULL) { // 将本transcation加入到checkpoint_list中
 		journal->j_checkpoint_transactions = commit_transaction;
 		commit_transaction->t_cpnext = commit_transaction;
 		commit_transaction->t_cpprev = commit_transaction;
@@ -1120,7 +1120,7 @@ restart_loop:
 
 	/* Done with this transaction! */
 
-	jbd_debug(3, "JBD2: commit phase 7\n");
+	jbd_debug(3, "JBD2: commit phase 7\n"); // T_COMMIT_JFLUSH->T_COMMIT_CALLBACK->T_COMMIT_CALLBACK
 
 	J_ASSERT(commit_transaction->t_state == T_COMMIT_JFLUSH);
 
@@ -1162,7 +1162,7 @@ restart_loop:
 		journal->j_fc_cleanup_callback(journal, 1, commit_transaction->t_tid);
 
 	trace_jbd2_end_commit(journal, commit_transaction);
-	jbd_debug(1, "JBD2: commit %d complete, head %d\n",
+	jbd_debug(1, "JBD2: commit %d complete, head %d\n", // 1)如果checkpointlist中没有jh，则释放本事务;2)跟新journal的state;      T_COMMIT_CALLBACK->T_FINISHED
 		  journal->j_commit_sequence, journal->j_tail_sequence);
 
 	write_lock(&journal->j_state_lock);
@@ -1171,7 +1171,7 @@ restart_loop:
 	spin_lock(&journal->j_list_lock);
 	commit_transaction->t_state = T_FINISHED;
 	/* Check if the transaction can be dropped now that we are finished */
-	if (commit_transaction->t_checkpoint_list == NULL &&
+	if (commit_transaction->t_checkpoint_list == NULL && // 如果checkpointlist中没有jh，则释放本事务
 	    commit_transaction->t_checkpoint_io_list == NULL) {
 		__jbd2_journal_drop_transaction(journal, commit_transaction);
 		jbd2_journal_free_transaction(commit_transaction);
@@ -1182,7 +1182,7 @@ restart_loop:
 	wake_up(&journal->j_fc_wait);
 
 	/*
-	 * Calculate overall stats
+	 * Calculate overall stats // 下面跟新journal的state
 	 */
 	spin_lock(&journal->j_history_lock);
 	journal->j_stats.ts_tid++;
