@@ -1106,14 +1106,14 @@ int __jbd2_update_log_tail(journal_t *journal, tid_t tid, unsigned long block)
 	 * space and if we lose sb update during power failure we'd replay
 	 * old transaction with possibly newly overwritten data.
 	 */
-	ret = jbd2_journal_update_sb_log_tail(journal, tid, block,
+	ret = jbd2_journal_update_sb_log_tail(journal, tid, block, // 将tid同步落盘 
 					      REQ_SYNC | REQ_FUA);
 	if (ret)
 		goto out;
 
 	write_lock(&journal->j_state_lock);
-	freed = block - journal->j_tail;
-	if (block < journal->j_tail)
+	freed = block - journal->j_tail; // 计算cp之后空出来的块数量
+	if (block < journal->j_tail) // 超过范围从头开始
 		freed += journal->j_last - journal->j_first;
 
 	trace_jbd2_update_log_tail(journal, tid, block, freed);
@@ -1122,7 +1122,7 @@ int __jbd2_update_log_tail(journal_t *journal, tid_t tid, unsigned long block)
 		  "freeing %lu\n",
 		  journal->j_tail_sequence, tid, block, freed);
 
-	journal->j_free += freed;
+	journal->j_free += freed; // 变更jsb中的值
 	journal->j_tail_sequence = tid;
 	journal->j_tail = block;
 	write_unlock(&journal->j_state_lock);

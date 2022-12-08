@@ -1084,7 +1084,7 @@ repeat:
 	 */
 	if (jh->b_frozen_data) {
 		JBUFFER_TRACE(jh, "has frozen data");
-		J_ASSERT_JH(jh, jh->b_next_transaction == NULL);
+		J_ASSERT_JH(jh, jh->b_next_transaction == NULL); // 第二次进入的时候将frezenData和nexttran赋值，再第三次进入的时候直接再这里bugon;
 		goto attach_next;
 	}
 

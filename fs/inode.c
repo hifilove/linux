@@ -2316,7 +2316,7 @@ static void __inode_dio_wait(struct inode *inode)
 void inode_dio_wait(struct inode *inode)
 {
 	if (atomic_read(&inode->i_dio_count))
-		__inode_dio_wait(inode);
+		__inode_dio_wait(inode); // 等待inode->i_dio_count != 0
 }
 EXPORT_SYMBOL(inode_dio_wait);
 

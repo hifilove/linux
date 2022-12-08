@@ -232,7 +232,7 @@ typedef struct journal_superblock_s
 /* 0x000C */
 	/* Static information describing the journal */
 	__be32	s_blocksize;		/* journal device blocksize */
-	__be32	s_maxlen;		/* total blocks in journal file */
+	__be32	s_maxlen;		/* total blocks in journal file */ // 日志文件最大长度
 	__be32	s_first;		/* first block of log information */
 
 /* 0x0018 */
@@ -1027,7 +1027,7 @@ struct journal_s
 	/**
 	 * @j_total_len: Total maximum capacity of the journal region on disk.
 	 */
-	unsigned int		j_total_len;
+	unsigned int		j_total_len; // 日志区总容量
 
 	/**
 	 * @j_reserved_credits:
@@ -1706,7 +1706,7 @@ static inline void jbd2_journal_abort_handle(handle_t *handle)
 /* Comparison functions for transaction IDs: perform comparisons using
  * modulo arithmetic so that they work over sequence number wraps. */
 
-static inline int tid_gt(tid_t x, tid_t y)
+static inline int tid_gt(tid_t x, tid_t y) // 前面>后面，返回1
 {
 	int difference = (x - y);
 	return (difference > 0);
@@ -1744,7 +1744,7 @@ static inline int jbd2_journal_get_num_fc_blks(journal_superblock_t *jsb)
 /*
  * Return number of free blocks in the log. Must be called under j_state_lock.
  */
-static inline unsigned long jbd2_log_space_left(journal_t *journal)
+static inline unsigned long jbd2_log_space_left(journal_t *journal) // 计算当前jbd中free的block数量（会减去当前commit的tran中的块
 {
 	/* Allow for rounding errors */
 	long free = journal->j_free - 32;

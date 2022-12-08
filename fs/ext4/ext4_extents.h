@@ -110,13 +110,13 @@ find_ext4_extent_tail(struct ext4_extent_header *eh)
  * Truncate uses it to simulate recursive walking.
  */
 struct ext4_ext_path {
-	ext4_fsblk_t			p_block;
-	__u16				p_depth;
+	ext4_fsblk_t			p_block; // 一下层的物理块号
+	__u16				p_depth; // 所处深度，叶子节点的话，深度为0
 	__u16				p_maxdepth;
-	struct ext4_extent		*p_ext;
-	struct ext4_extent_idx		*p_idx;
-	struct ext4_extent_header	*p_hdr;
-	struct buffer_head		*p_bh;
+	struct ext4_extent		*p_ext; // 如果是叶子节点，其存储最终找到的extent
+	struct ext4_extent_idx		*p_idx; // 如果是中间节点。其存储索引extent
+	struct ext4_extent_header	*p_hdr; // 该extent所在的block的头部信息
+	struct buffer_head		*p_bh; // 本索引块的bh;上面的三个指针都是指向这个bh中某个位置
 };
 
 /*
@@ -189,7 +189,7 @@ static inline struct ext4_extent_header *ext_block_hdr(struct buffer_head *bh)
 	return (struct ext4_extent_header *) bh->b_data;
 }
 
-static inline unsigned short ext_depth(struct inode *inode)
+static inline unsigned short ext_depth(struct inode *inode) // 此inode的深度
 {
 	return le16_to_cpu(ext_inode_hdr(inode)->eh_depth);
 }
@@ -207,7 +207,7 @@ static inline int ext4_ext_is_unwritten(struct ext4_extent *ext)
 	return (le16_to_cpu(ext->ee_len) > EXT_INIT_MAX_LEN);
 }
 
-static inline int ext4_ext_get_actual_len(struct ext4_extent *ext)
+static inline int ext4_ext_get_actual_len(struct ext4_extent *ext) // 计算出真实的长度，因为有unwritten的块
 {
 	return (le16_to_cpu(ext->ee_len) <= EXT_INIT_MAX_LEN ?
 		le16_to_cpu(ext->ee_len) :
@@ -223,7 +223,7 @@ static inline void ext4_ext_mark_initialized(struct ext4_extent *ext)
  * ext4_ext_pblock:
  * combine low and high parts of physical block number into ext4_fsblk_t
  */
-static inline ext4_fsblk_t ext4_ext_pblock(struct ext4_extent *ex)
+static inline ext4_fsblk_t ext4_ext_pblock(struct ext4_extent *ex) // 物理块起地址
 {
 	ext4_fsblk_t block;
 
@@ -250,7 +250,7 @@ static inline ext4_fsblk_t ext4_idx_pblock(struct ext4_extent_idx *ix)
  * stores a large physical block number into an extent struct,
  * breaking it into parts
  */
-static inline void ext4_ext_store_pblock(struct ext4_extent *ex,
+static inline void ext4_ext_store_pblock(struct ext4_extent *ex, // 装载物理块号
 					 ext4_fsblk_t pb)
 {
 	ex->ee_start_lo = cpu_to_le32((unsigned long) (pb & 0xffffffff));

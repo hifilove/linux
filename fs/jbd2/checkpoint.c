@@ -104,7 +104,7 @@ __releases(&journal->j_state_lock)
 	int nblocks, space_left;
 	/* assert_spin_locked(&journal->j_state_lock); */
 
-	nblocks = journal->j_max_transaction_buffers;
+	nblocks = journal->j_max_transaction_buffers; // nblocks == 一个transcation中最大buffer的数量
 	while (jbd2_log_space_left(journal) < nblocks) {
 		write_unlock(&journal->j_state_lock);
 		mutex_lock_io(&journal->j_checkpoint_mutex);
@@ -387,7 +387,7 @@ int jbd2_cleanup_journal_tail(journal_t *journal)
 	if (is_journal_aborted(journal))
 		return -EIO;
 
-	if (!jbd2_journal_get_log_tail(journal, &first_tid, &blocknr))
+	if (!jbd2_journal_get_log_tail(journal, &first_tid, &blocknr)) // 获得最开始需要cp的tid和blocknr
 		return 1;
 	J_ASSERT(blocknr != 0);
 
@@ -430,7 +430,7 @@ static int journal_clean_one_cp_list(struct journal_head *jh, bool destroy)
 		jh = next_jh;
 		next_jh = jh->b_cpnext;
 
-		if (!destroy && __cp_buffer_busy(jh)) // 这里已经判断jh是不是update了
+		if (!destroy && __cp_buffer_busy(jh)) // 这里已经判断jh是不是dirty了
 			return 0;
 
 		if (__jbd2_journal_remove_checkpoint(jh)) // 已经update，或强制destroy的的jh进行脱链管理

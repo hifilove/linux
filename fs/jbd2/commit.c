@@ -535,7 +535,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	 * frees some memory
 	 */
 	spin_lock(&journal->j_list_lock);
-	__jbd2_journal_clean_checkpoint_list(journal, false); // 对checkpointd链表中所有transaction链表中的每个jh检查是否update，如果是则jh脱t_checkpoint_io_list链，transaction脱checkpointd链
+	__jbd2_journal_clean_checkpoint_list(journal, false); // 对checkpointd链表中所有transaction链表中的每个jh检查是否dirty，如果是则jh脱t_checkpoint_io_list链，transaction脱checkpointd链
 	spin_unlock(&journal->j_list_lock);
 
 	jbd_debug(3, "JBD2: commit phase 1\n"); // 1)             T_SWITCH->T_FLUSH
@@ -994,14 +994,14 @@ restart_loop:
 				jh->b_frozen_data = NULL;
 				jh->b_frozen_triggers = NULL;
 			}
-		} else if (jh->b_frozen_data) {
+		} else if (jh->b_frozen_data) { // 在metalist的时候被修改过，记录在frozendata的数据需要被释放
 			jbd2_free(jh->b_frozen_data, bh->b_size);
 			jh->b_frozen_data = NULL;
 			jh->b_frozen_triggers = NULL;
 		}
 
 		spin_lock(&journal->j_list_lock);
-		cp_transaction = jh->b_cp_transaction;
+		cp_transaction = jh->b_cp_transaction; // 如果在以前的cplist中，将其删除，因为下面会进行新的管理
 		if (cp_transaction) {
 			JBUFFER_TRACE(jh, "remove from old cp transaction");
 			cp_transaction->t_chp_stats.cs_dropped++;

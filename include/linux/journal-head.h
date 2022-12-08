@@ -50,7 +50,7 @@ struct journal_head {
 	 * the currently running transaction
 	 * [b_state_lock]
 	 */
-	unsigned b_modified;
+	unsigned b_modified; // 在dirty的时候会去置位
 
 	/*
 	 * Copy of the buffer data frozen for writing to the log.
@@ -95,7 +95,7 @@ struct journal_head {
 	 * is checkpointed.  Only dirty buffers can be checkpointed.
 	 * [j_list_lock]
 	 */
-	transaction_t *b_cp_transaction;
+	transaction_t *b_cp_transaction; // 指向这个jh所在的cp的transaction，因为这个jh不一定只在一个transaction中，也有可能会出现在以前的等待cp的transaction上，而当前的transaction正在提交io中
 
 	/*
 	 * Doubly-linked list of buffers still remaining to be flushed
