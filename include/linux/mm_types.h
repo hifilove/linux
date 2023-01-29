@@ -100,7 +100,7 @@ struct page {
 			pgoff_t index;		/* Our offset within mapping. */
 			/**
 			 * @private: Mapping-private opaque data.
-			 * Usually used for buffer_heads if PagePrivate.
+			 * Usually used for buffer_heads if PagePrivate. // 作为bh使用常常
 			 * Used for swp_entry_t if PageSwapCache.
 			 * Indicates order in the buddy system if PageBuddy.
 			 */

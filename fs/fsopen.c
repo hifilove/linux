@@ -139,7 +139,7 @@ SYSCALL_DEFINE2(fsopen, const char __user *, _fs_name, unsigned int, flags)
 	if (IS_ERR(fc))
 		return PTR_ERR(fc);
 
-	fc->phase = FS_CONTEXT_CREATE_PARAMS;
+	fc->phase = FS_CONTEXT_CREATE_PARAMS;/* Loading params for sb creation */
 
 	ret = fscontext_alloc_log(fc);
 	if (ret < 0)
@@ -365,7 +365,7 @@ SYSCALL_DEFINE5(fsconfig,
 	if (!f.file)
 		return -EBADF;
 	ret = -EINVAL;
-	if (f.file->f_op != &fscontext_fops)
+	if (f.file->f_op != &fscontext_fops) // 在fsopen的时候已经将fops赋值为&fscontext_fops
 		goto out_f;
 
 	fc = f.file->private_data;
@@ -381,7 +381,7 @@ SYSCALL_DEFINE5(fsconfig,
 	}
 
 	if (_key) {
-		param.key = strndup_user(_key, 256);
+		param.key = strndup_user(_key, 256); // copy from user
 		if (IS_ERR(param.key)) {
 			ret = PTR_ERR(param.key);
 			goto out_f;
@@ -392,7 +392,7 @@ SYSCALL_DEFINE5(fsconfig,
 	case FSCONFIG_SET_FLAG:
 		param.type = fs_value_is_flag;
 		break;
-	case FSCONFIG_SET_STRING:
+	case FSCONFIG_SET_STRING: // value是string处理
 		param.type = fs_value_is_string;
 		param.string = strndup_user(_value, 256);
 		if (IS_ERR(param.string)) {

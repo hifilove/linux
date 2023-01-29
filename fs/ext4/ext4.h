@@ -205,9 +205,9 @@ struct ext4_allocation_request {
 				 EXT4_MAP_UNWRITTEN | EXT4_MAP_BOUNDARY)
 
 struct ext4_map_blocks {
-	ext4_fsblk_t m_pblk;
-	ext4_lblk_t m_lblk;
-	unsigned int m_len;
+	ext4_fsblk_t m_pblk; // 起始物理块
+	ext4_lblk_t m_lblk; // 起始逻辑块
+	unsigned int m_len; // 需要映射的长度
 	unsigned int m_flags;
 };
 
@@ -1305,14 +1305,14 @@ extern void mb_set_bits(void *bm, int cur, int len);
 /*
  * Structure of the super block
  */
-struct ext4_super_block {
+struct ext4_super_block { // ext4盘上sb的结构
 /*00*/	__le32	s_inodes_count;		/* Inodes count */
 	__le32	s_blocks_count_lo;	/* Blocks count */
 	__le32	s_r_blocks_count_lo;	/* Reserved blocks count */
 	__le32	s_free_blocks_count_lo;	/* Free blocks count */
 /*10*/	__le32	s_free_inodes_count;	/* Free inodes count */
 	__le32	s_first_data_block;	/* First Data Block */
-	__le32	s_log_block_size;	/* Block size */
+	__le32	s_log_block_size;	/* Block size */ // Block size is 2 ^ (10 + s_log_block_size).
 	__le32	s_log_cluster_size;	/* Allocation cluster size */
 /*20*/	__le32	s_blocks_per_group;	/* # Blocks per group */
 	__le32	s_clusters_per_group;	/* # Clusters per group */
@@ -1502,7 +1502,7 @@ struct ext4_orphan_info {
 /*
  * fourth extended-fs super-block data in memory
  */
-struct ext4_sb_info {
+struct ext4_sb_info { // 内存中的ext4 sb结构
 	unsigned long s_desc_size;	/* Size of a group descriptor in bytes */
 	unsigned long s_inodes_per_block;/* Number of inodes per block */
 	unsigned long s_blocks_per_group;/* Number of blocks in a group */
@@ -2304,7 +2304,7 @@ struct ext4_dir_entry_hash {
  */
 struct ext4_dir_entry_2 {
 	__le32	inode;			/* Inode number */
-	__le16	rec_len;		/* Directory entry length */
+	__le16	rec_len;		/* Directory entry length */ // 这个结构在这个block中的长度
 	__u8	name_len;		/* Name length */
 	__u8	file_type;		/* See file type macros EXT4_FT_* below */
 	char	name[EXT4_NAME_LEN];	/* File name */

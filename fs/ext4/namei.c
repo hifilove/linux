@@ -1456,7 +1456,7 @@ static bool ext4_match(struct inode *parent,
 /*
  * Returns 0 if not found, -1 on failure, and 1 on success
  */
-int ext4_search_dir(struct buffer_head *bh, char *search_buf, int buf_size,
+int ext4_search_dir(struct buffer_head *bh, char *search_buf, int buf_size, // search_buf:bh->b_data即父节点的目录项block数据
 		    struct inode *dir, struct ext4_filename *fname,
 		    unsigned int offset, struct ext4_dir_entry_2 **res_dir)
 {
@@ -1476,7 +1476,7 @@ int ext4_search_dir(struct buffer_head *bh, char *search_buf, int buf_size,
 			if (ext4_check_dir_entry(dir, NULL, de, bh, search_buf,
 						 buf_size, offset))
 				return -1;
-			*res_dir = de;
+			*res_dir = de; // catch it!
 			return 1;
 		}
 		/* prevent looping on a bad block */
@@ -1525,7 +1525,7 @@ static struct buffer_head *__ext4_find_entry(struct inode *dir,
 	struct super_block *sb;
 	struct buffer_head *bh_use[NAMEI_RA_SIZE];
 	struct buffer_head *bh, *ret = NULL;
-	ext4_lblk_t start, block;
+	ext4_lblk_t start, block; // 这里都是逻辑块号
 	const u8 *name = fname->usr_fname->name;
 	size_t ra_max = 0;	/* Number of bh's in the readahead
 				   buffer, bh_use[] */
@@ -1607,7 +1607,7 @@ restart:
 		}
 		if ((bh = bh_use[ra_ptr++]) == NULL)
 			goto next;
-		wait_on_buffer(bh);
+		wait_on_buffer(bh); // 等待这个bh已经读上来
 		if (!buffer_uptodate(bh)) {
 			EXT4_ERROR_INODE_ERR(dir, EIO,
 					     "reading directory lblock %lu",
@@ -1757,7 +1757,7 @@ success:
 	return bh;
 }
 
-static struct dentry *ext4_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
+static struct dentry *ext4_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags) // dir是父节点的inode,dentry是空的dentry里面记录了要找的目录的name,从nd->last中获得
 {
 	struct inode *inode;
 	struct ext4_dir_entry_2 *de;
@@ -1766,12 +1766,12 @@ static struct dentry *ext4_lookup(struct inode *dir, struct dentry *dentry, unsi
 	if (dentry->d_name.len > EXT4_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	bh = ext4_lookup_entry(dir, dentry, &de);
+	bh = ext4_lookup_entry(dir, dentry, &de); // 从父节点的ext4_dir_entry_2条目中找到name对应的条目
 	if (IS_ERR(bh))
 		return ERR_CAST(bh);
 	inode = NULL;
 	if (bh) {
-		__u32 ino = le32_to_cpu(de->inode);
+		__u32 ino = le32_to_cpu(de->inode); // 通过父节点中的ext4_dir_entry_2条目获得自己的inode
 		brelse(bh);
 		if (!ext4_valid_inum(dir->i_sb, ino)) {
 			EXT4_ERROR_INODE(dir, "bad inode number: %u", ino);
@@ -1782,7 +1782,7 @@ static struct dentry *ext4_lookup(struct inode *dir, struct dentry *dentry, unsi
 					 dentry);
 			return ERR_PTR(-EFSCORRUPTED);
 		}
-		inode = ext4_iget(dir->i_sb, ino, EXT4_IGET_NORMAL);
+		inode = ext4_iget(dir->i_sb, ino, EXT4_IGET_NORMAL); // 获得自己的inode cache
 		if (inode == ERR_PTR(-ESTALE)) {
 			EXT4_ERROR_INODE(dir,
 					 "deleted inode referenced: %u",

@@ -50,7 +50,7 @@ struct fs_parameter_spec {
 /*
  * Result of parse.
  */
-struct fs_parse_result {
+struct fs_parse_result { // 如果是数字，结果返回使用
 	bool			negated;	/* T if param was "noxxx" */
 	union {
 		bool		boolean;	/* For spec_bool */

@@ -1500,7 +1500,7 @@ journal_t *jbd2_journal_init_inode(struct inode *inode)
 		  inode->i_sb->s_id, inode->i_ino, (long long) inode->i_size,
 		  inode->i_sb->s_blocksize_bits, inode->i_sb->s_blocksize);
 
-	journal = journal_init_common(inode->i_sb->s_bdev, inode->i_sb->s_bdev,
+	journal = journal_init_common(inode->i_sb->s_bdev, inode->i_sb->s_bdev, // 在初始化的时候先JBD2_ABORT,日志重演成功后会清楚标记位
 			blocknr, inode->i_size >> inode->i_sb->s_blocksize_bits,
 			inode->i_sb->s_blocksize);
 	if (!journal)
@@ -1510,7 +1510,7 @@ journal_t *jbd2_journal_init_inode(struct inode *inode)
 	bdevname(journal->j_dev, journal->j_devname);
 	p = strreplace(journal->j_devname, '/', '!');
 	sprintf(p, "-%lu", journal->j_inode->i_ino);
-	jbd2_stats_proc_init(journal);
+	jbd2_stats_proc_init(journal); // 在proc下创建一个blkname/info
 
 	return journal;
 }

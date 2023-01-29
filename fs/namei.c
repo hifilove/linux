@@ -560,23 +560,23 @@ void path_put(const struct path *path)
 EXPORT_SYMBOL(path_put);
 
 #define EMBEDDED_LEVELS 2
-struct nameidata {
-	struct path	path;
-	struct qstr	last; // 存放需要解析的路径
-	struct path	root;
-	struct inode	*inode; /* path.dentry.d_inode */
+struct nameidata { // 存储路径查找过程中的临时变量
+	struct path	path; // 当前搜索到的路径
+	struct qstr	last; // 还没解析的路劲,下一个路劲
+	struct path	root; // 根路径信息
+	struct inode	*inode; /* path.dentry.d_inode */ // 当前目录的inode结构
 	unsigned int	flags, state;
 	unsigned	seq, m_seq, r_seq;
-	int		last_type;
-	unsigned	depth;
+	int		last_type; // 当前节点的类型 LAST_NORM ......
+	unsigned	depth; // 当前符号链接的递归深度
 	int		total_link_count;
 	struct saved {
 		struct path link;
 		struct delayed_call done;
 		const char *name;
 		unsigned seq;
-	} *stack, internal[EMBEDDED_LEVELS]; // link的时候使用
-	struct filename	*name;
+	} *stack, internal[EMBEDDED_LEVELS]; // link的时候使用,保存链接后没有被解析的部分
+	struct filename	*name; // 全部路径
 	struct nameidata *saved;
 	unsigned	root_seq;
 	int		dfd;
@@ -1288,16 +1288,16 @@ EXPORT_SYMBOL(follow_up);
 static bool choose_mountpoint_rcu(struct mount *m, const struct path *root,
 				  struct path *path, unsigned *seqp)
 {
-	while (mnt_has_parent(m)) {
+	while (mnt_has_parent(m)) { // 这个文件系统还有父文件系统
 		struct dentry *mountpoint = m->mnt_mountpoint;
 
 		m = m->mnt_parent;
 		if (unlikely(root->dentry == mountpoint &&
 			     root->mnt == &m->mnt))
 			break;
-		if (mountpoint != m->mnt.mnt_root) {
+		if (mountpoint != m->mnt.mnt_root) { // 如果本文件系统的挂载点 != 本文件系统的根（也就是不是rootfs）
 			path->mnt = &m->mnt;
-			path->dentry = mountpoint;
+			path->dentry = mountpoint;  // 修改path为上一个文件系统的自己的挂载点dentry
 			*seqp = read_seqcount_begin(&mountpoint->d_seq);
 			return true;
 		}
@@ -1882,9 +1882,9 @@ static struct dentry *follow_dotdot_rcu(struct nameidata *nd,
 {
 	struct dentry *parent, *old;
 
-	if (path_equal(&nd->path, &nd->root))
+	if (path_equal(&nd->path, &nd->root)) // 已经走到了mount tree上的根路劲
 		goto in_root;
-	if (unlikely(nd->path.dentry == nd->path.mnt->mnt_root)) {
+	if (unlikely(nd->path.dentry == nd->path.mnt->mnt_root)) { // 如果当前的path == 本个文件系统的根路劲
 		struct path path;
 		unsigned seq;
 		if (!choose_mountpoint_rcu(real_mount(nd->path.mnt),
@@ -1892,14 +1892,14 @@ static struct dentry *follow_dotdot_rcu(struct nameidata *nd,
 			goto in_root;
 		if (unlikely(nd->flags & LOOKUP_NO_XDEV))
 			return ERR_PTR(-ECHILD);
-		nd->path = path;
+		nd->path = path; // 修改当前的路径
 		nd->inode = path.dentry->d_inode;
 		nd->seq = seq;
 		if (unlikely(read_seqretry(&mount_lock, nd->m_seq)))
 			return ERR_PTR(-ECHILD);
 		/* we know that mountpoint was pinned */
 	}
-	old = nd->path.dentry;
+	old = nd->path.dentry; // 如果条件都不满足，说明上一级是一个普通文件，即直接将父dentry赋值即可
 	parent = old->d_parent;
 	*inodep = parent->d_inode;
 	*seqp = read_seqcount_begin(&parent->d_seq);
@@ -1955,7 +1955,7 @@ in_root:
 
 static const char *handle_dots(struct nameidata *nd, int type)
 {
-	if (type == LAST_DOTDOT) {
+	if (type == LAST_DOTDOT) { // 只对..做操作,.的话不做操作，因为就是当前的路径
 		const char *error = NULL;
 		struct dentry *parent;
 		struct inode *inode;
@@ -1967,7 +1967,7 @@ static const char *handle_dots(struct nameidata *nd, int type)
 				return error;
 		}
 		if (nd->flags & LOOKUP_RCU)
-			parent = follow_dotdot_rcu(nd, &inode, &seq);
+			parent = follow_dotdot_rcu(nd, &inode, &seq); // rcu策略
 		else
 			parent = follow_dotdot(nd, &inode, &seq);
 		if (IS_ERR(parent))
@@ -1998,7 +1998,7 @@ static const char *handle_dots(struct nameidata *nd, int type)
 	return NULL;
 }
 
-static const char *walk_component(struct nameidata *nd, int flags)
+static const char *walk_component(struct nameidata *nd, int flags) // 向后面的路径走一个
 {
 	struct dentry *dentry;
 	struct inode *inode;
@@ -2008,10 +2008,10 @@ static const char *walk_component(struct nameidata *nd, int flags)
 	 * to be able to know about the current root directory and
 	 * parent relationships.
 	 */
-	if (unlikely(nd->last_type != LAST_NORM)) {
+	if (unlikely(nd->last_type != LAST_NORM)) { // 如果是进入的是./..
 		if (!(flags & WALK_MORE) && nd->depth)
 			put_link(nd);
-		return handle_dots(nd, nd->last_type);
+		return handle_dots(nd, nd->last_type); ./..的处理
 	}
 	dentry = lookup_fast(nd, &inode, &seq);
 	if (IS_ERR(dentry))
@@ -2267,11 +2267,11 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 	int depth = 0; // depth <= nd->depth
 	int err;
 
-	nd->last_type = LAST_ROOT;
+	nd->last_type = LAST_ROOT; // 初始化上一个路径的type是根
 	nd->flags |= LOOKUP_PARENT;
 	if (IS_ERR(name))
 		return PTR_ERR(name);
-	while (*name=='/')
+	while (*name=='/') // 跳过重复的根
 		name++;
 	if (!*name) {
 		nd->dir_mode = 0; // short-circuit the 'hardening' idiocy
@@ -2293,7 +2293,7 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		hash_len = hash_name(nd->path.dentry, name);
 
 		type = LAST_NORM;
-		if (name[0] == '.') switch (hashlen_len(hash_len)) {
+		if (name[0] == '.') switch (hashlen_len(hash_len)) { // 如果是. / .. 则type标记一下
 			case 2:
 				if (name[1] == '.') {
 					type = LAST_DOTDOT;
@@ -2303,7 +2303,7 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 			case 1:
 				type = LAST_DOT;
 		}
-		if (likely(type == LAST_NORM)) {
+		if (likely(type == LAST_NORM)) { // 走到这里说明是一个普通文件名
 			struct dentry *parent = nd->path.dentry;
 			nd->state &= ~ND_JUMPED;
 			if (unlikely(parent->d_flags & DCACHE_OP_HASH)) {
@@ -2315,32 +2315,32 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 				name = this.name;
 			}
 		}
-
+		// 记录本次需要解析的路径信息
 		nd->last.hash_len = hash_len;
 		nd->last.name = name;
 		nd->last_type = type;
 
-		name += hashlen_len(hash_len);
-		if (!*name)
-			goto OK;
+		name += hashlen_len(hash_len); // 加上本个路径的长度
+		if (!*name) // 如果是空说明现在是最后一个路径了
+			goto OK; // last中记录的是最后一个文件的信息
 		/*
 		 * If it wasn't NUL, we know it was '/'. Skip that
 		 * slash, and continue until no more slashes.
 		 */
 		do {
 			name++;
-		} while (unlikely(*name == '/'));
-		if (unlikely(!*name)) {
+		} while (unlikely(*name == '/')); // 跳过这个目录后面的/符号
+		if (unlikely(!*name)) { // 上面跳过了'/',即"a/b/c/" == "a/b/c"
 OK:
 			/* pathname or trailing symlink, done */
-			if (!depth) {
+			if (!depth) { // 最后一个分量，软连接也被处理完了
 				nd->dir_uid = i_uid_into_mnt(mnt_userns, nd->inode);
 				nd->dir_mode = nd->inode->i_mode;
 				nd->flags &= ~LOOKUP_PARENT;
 				return 0;
 			}
 			/* last component of nested symlink */
-			name = nd->stack[--depth].name;
+			name = nd->stack[--depth].name; // 取出软连接栈中的内容，继续while处理
 			link = walk_component(nd, 0);
 		} else {
 			/* not the last component */
@@ -2365,10 +2365,10 @@ OK:
 }
 
 /* must be paired with terminate_walk() */
-static const char *path_init(struct nameidata *nd, unsigned flags)
+static const char *path_init(struct nameidata *nd, unsigned flags) // 初始一个nameidata用来遍历路径
 {
 	int error;
-	const char *s = nd->name->name;
+	const char *s = nd->name->name; // 在set_nameidata中已经将filename赋值给nd->name
 
 	/* LOOKUP_CACHED requires RCU, ask caller to retry */
 	if ((flags & (LOOKUP_RCU | LOOKUP_CACHED)) == LOOKUP_CACHED)
@@ -2405,15 +2405,15 @@ static const char *path_init(struct nameidata *nd, unsigned flags)
 	nd->root.mnt = NULL;
 
 	/* Absolute pathname -- fetch the root (LOOKUP_IN_ROOT uses nd->dfd). */
-	if (*s == '/' && !(flags & LOOKUP_IN_ROOT)) {
-		error = nd_jump_root(nd);
+	if (*s == '/' && !(flags & LOOKUP_IN_ROOT)) { // 如果是从根路径开始的话
+		error = nd_jump_root(nd); // nd跳到root
 		if (unlikely(error))
 			return ERR_PTR(error);
 		return s;
 	}
 
 	/* Relative pathname -- get the starting-point it is relative to. */
-	if (nd->dfd == AT_FDCWD) {
+	if (nd->dfd == AT_FDCWD) { // 如果现在是相对路径的话
 		if (flags & LOOKUP_RCU) {
 			struct fs_struct *fs = current->fs;
 			unsigned seq;
@@ -2425,7 +2425,7 @@ static const char *path_init(struct nameidata *nd, unsigned flags)
 				nd->seq = __read_seqcount_begin(&nd->path.dentry->d_seq);
 			} while (read_seqcount_retry(&fs->seq, seq));
 		} else {
-			get_fs_pwd(current->fs, &nd->path);
+			get_fs_pwd(current->fs, &nd->path); // 获得当前的路径
 			nd->inode = nd->path.dentry->d_inode;
 		}
 	} else {
@@ -3327,7 +3327,7 @@ static struct dentry *lookup_open(struct nameidata *nd, struct file *file,
 			goto out_dput;
 		}
 
-		error = dir_inode->i_op->create(mnt_userns, dir_inode, dentry,
+		error = dir_inode->i_op->create(mnt_userns, dir_inode, dentry, // 创建文件
 						mode, open_flag & O_EXCL);
 		if (error)
 			goto out_dput;
@@ -3473,7 +3473,7 @@ static int do_open(struct nameidata *nd,
 	}
 	error = may_open(mnt_userns, &nd->path, acc_mode, open_flag);
 	if (!error && !(file->f_mode & FMODE_OPENED))
-		error = vfs_open(&nd->path, file);
+		error = vfs_open(&nd->path, file); // 打开文件,返回file结构
 	if (!error)
 		error = ima_file_check(file, op->acc_mode);
 	if (!error && do_truncate)
@@ -3592,7 +3592,7 @@ static struct file *path_openat(struct nameidata *nd,
 	struct file *file;
 	int error;
 
-	file = alloc_empty_file(op->open_flag, current_cred());
+	file = alloc_empty_file(op->open_flag, current_cred()); // new一个file结构体的空间
 	if (IS_ERR(file))
 		return file;
 
@@ -3602,8 +3602,8 @@ static struct file *path_openat(struct nameidata *nd,
 		error = do_o_path(nd, flags, file);
 	} else {
 		const char *s = path_init(nd, flags);
-		while (!(error = link_path_walk(s, nd)) &&
-		       (s = open_last_lookups(nd, file, op)) != NULL)
+		while (!(error = link_path_walk(s, nd)) && // 路径遍历函数 , 直到最后一个路劲
+		       (s = open_last_lookups(nd, file, op)) != NULL) // 解析文件路劲最后一个分量
 			;
 		if (!error)
 			error = do_open(nd, file, op);
@@ -3633,11 +3633,11 @@ struct file *do_filp_open(int dfd, struct filename *pathname,
 	struct file *filp;
 
 	set_nameidata(&nd, dfd, pathname, NULL);
-	filp = path_openat(&nd, op, flags | LOOKUP_RCU);
+	filp = path_openat(&nd, op, flags | LOOKUP_RCU); // 第一次rcu
 	if (unlikely(filp == ERR_PTR(-ECHILD)))
-		filp = path_openat(&nd, op, flags);
+		filp = path_openat(&nd, op, flags); // 第二次ref
 	if (unlikely(filp == ERR_PTR(-ESTALE)))
-		filp = path_openat(&nd, op, flags | LOOKUP_REVAL);
+		filp = path_openat(&nd, op, flags | LOOKUP_REVAL); //第三次过期文件？
 	restore_nameidata();
 	return filp;
 }

@@ -797,7 +797,7 @@ struct journal_s
 	/**
 	 * @j_sb_buffer: The first part of the superblock buffer.
 	 */
-	struct buffer_head	*j_sb_buffer;
+	struct buffer_head	*j_sb_buffer; // jbd sb bh
 
 	/**
 	 * @j_superblock: The second part of the superblock buffer.

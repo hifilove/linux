@@ -2615,7 +2615,7 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 
 	trace_ext4_ext_rm_leaf(inode, start, ex, partial);
 
-	while (ex >= EXT_FIRST_EXTENT(eh) &&
+	while (ex >= EXT_FIRST_EXTENT(eh) && // 从path路劲的ex开始向前遍历，直到start为止
 			ex_ee_block + ex_ee_len > start) {
 
 		if (ext4_ext_is_unwritten(ex))
@@ -2631,10 +2631,10 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 		b = ex_ee_block+ex_ee_len - 1 < end ?
 			ex_ee_block+ex_ee_len - 1 : end;
 
-		ext_debug(inode, "  border %u:%u\n", a, b);
+		ext_debug(inode, "  border %u:%u\n", a, b); // 也就是a-b是需要被删除的空间
 
 		/* If this extent is beyond the end of the hole, skip it */
-		if (end < ex_ee_block) {
+		if (end < ex_ee_block) { // 如果当前的ex在end的左边，则跳过这个ex，拿前一个ex
 			/*
 			 * We're going to skip this extent and move to another,
 			 * so note that its first cluster is in use to avoid
@@ -2647,7 +2647,7 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 				partial->pclu = EXT4_B2C(sbi, pblk);
 				partial->state = nofree;
 			}
-			ex--;
+			ex--; // 将ex前移一个
 			ex_ee_block = le32_to_cpu(ex->ee_block);
 			ex_ee_len = ext4_ext_get_actual_len(ex);
 			continue;
@@ -2742,8 +2742,8 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 
 		ext_debug(inode, "new extent: %u:%u:%llu\n", ex_ee_block, num,
 				ext4_ext_pblock(ex));
-		ex--;
-		ex_ee_block = le32_to_cpu(ex->ee_block);
+		ex--; // 将ex前移一个
+		ex_ee_block = le32_to_cpu(ex->ee_block); // 更新ex的block和len
 		ex_ee_len = ext4_ext_get_actual_len(ex);
 	}
 
@@ -3337,7 +3337,7 @@ static int ext4_split_extent(handle_t *handle,
 	ee_len = ext4_ext_get_actual_len(ex);
 	unwritten = ext4_ext_is_unwritten(ex);
 
-	if (map->m_lblk + map->m_len < ee_block + ee_len) {
+	if (map->m_lblk + map->m_len < ee_block + ee_len) { // 如果map的最右和当前的ex的末尾有空间
 		split_flag1 = split_flag & EXT4_EXT_MAY_ZEROOUT;
 		flags1 = flags | EXT4_GET_BLOCKS_PRE_IO;
 		if (unwritten)
@@ -3345,7 +3345,7 @@ static int ext4_split_extent(handle_t *handle,
 				       EXT4_EXT_MARK_UNWRIT2;
 		if (split_flag & EXT4_EXT_DATA_VALID2)
 			split_flag1 |= EXT4_EXT_DATA_VALID1;
-		err = ext4_split_extent_at(handle, inode, ppath,
+		err = ext4_split_extent_at(handle, inode, ppath, // 在map的末尾进行分裂
 				map->m_lblk + map->m_len, split_flag1, flags1);
 		if (err)
 			goto out;

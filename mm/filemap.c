@@ -3746,6 +3746,9 @@ out:
 }
 EXPORT_SYMBOL(generic_file_direct_write);
 
+// 1）数据从用户态拷贝到内核态
+// 2）数据页面标志位脏
+// 3）数据还没有写道磁盘上
 ssize_t generic_perform_write(struct kiocb *iocb, struct iov_iter *i)
 {
 	struct file *file = iocb->ki_filp;
@@ -3789,10 +3792,10 @@ again:
 		if (unlikely(status < 0))
 			break;
 
-		if (mapping_writably_mapped(mapping))
-			flush_dcache_page(page);
+		if (mapping_writably_mapped(mapping)) // 这个addressspace的共享映射数量 > 0
+			flush_dcache_page(page); // 刷新dcache
 
-		copied = copy_page_from_iter_atomic(page, offset, bytes, i);
+		copied = copy_page_from_iter_atomic(page, offset, bytes, i); // 数据从用户态拷贝到内核态
 		flush_dcache_page(page);
 
 		status = a_ops->write_end(file, mapping, pos, bytes, copied,
@@ -3802,7 +3805,7 @@ again:
 			if (unlikely(status < 0))
 				break;
 		}
-		cond_resched();
+		cond_resched(); // 查看当前进程是否需要被调度出去
 
 		if (unlikely(status == 0)) {
 			/*

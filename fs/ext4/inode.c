@@ -2947,7 +2947,7 @@ static int ext4_da_write_begin(struct file *file, struct address_space *mapping,
 	if (ext4_nonda_switch(inode->i_sb) || S_ISLNK(inode->i_mode) ||
 	    ext4_verity_in_progress(inode)) {
 		*fsdata = (void *)FALL_BACK_TO_NONDELALLOC;
-		return ext4_write_begin(file, mapping, pos,
+		return ext4_write_begin(file, mapping, pos, // 如果剩余的空间块小于一定比例，不能使用da使用普通的write
 					len, flags, pagep, fsdata);
 	}
 	*fsdata = (void *)0;
@@ -2964,7 +2964,7 @@ static int ext4_da_write_begin(struct file *file, struct address_space *mapping,
 	}
 
 retry:
-	page = grab_cache_page_write_begin(mapping, index, flags);
+	page = grab_cache_page_write_begin(mapping, index, flags); // 为address分配page
 	if (!page)
 		return -ENOMEM;
 
@@ -2975,7 +2975,7 @@ retry:
 	ret = ext4_block_write_begin(page, pos, len,
 				     ext4_da_get_block_prep);
 #else
-	ret = __block_write_begin(page, pos, len, ext4_da_get_block_prep);
+	ret = __block_write_begin(page, pos, len, ext4_da_get_block_prep); // 可能会为page分配对应的block，主要看入参，此处是da模式所以入参是ext4_da_get_block_prep
 #endif
 	if (ret < 0) {
 		unlock_page(page);

@@ -233,13 +233,13 @@ static struct buffer_head *__ext4_sb_bread_gfp(struct super_block *sb,
 	struct buffer_head *bh;
 	int ret;
 
-	bh = sb_getblk_gfp(sb, block, gfp);
+	bh = sb_getblk_gfp(sb, block, gfp); // 创建page和bh
 	if (bh == NULL)
 		return ERR_PTR(-ENOMEM);
 	if (ext4_buffer_uptodate(bh))
 		return bh;
 
-	ret = ext4_read_bh_lock(bh, REQ_META | op_flags, true);
+	ret = ext4_read_bh_lock(bh, REQ_META | op_flags, true); // 读盘上的数据到bh中
 	if (ret) {
 		put_bh(bh);
 		return ERR_PTR(ret);
@@ -4476,7 +4476,7 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 		goto failed_mount;
 	}
 
-	/* Check superblock checksum */
+	/* Check superblock checksum */ // ****************************
 	if (!ext4_superblock_csum_verify(sb, es)) {
 		ext4_msg(sb, KERN_ERR, "VFS: Found ext4 filesystem with "
 			 "invalid superblock checksum.  Run e2fsck?");
@@ -4485,7 +4485,7 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 		goto cantfind_ext4;
 	}
 
-	/* Precompute checksum seed for all metadata */
+	/* Precompute checksum seed for all metadata */ // 叶师傅以前说的组csum可能是这里直接赋值
 	if (ext4_has_feature_csum_seed(sb))
 		sbi->s_csum_seed = le32_to_cpu(es->s_checksum_seed);
 	else if (ext4_has_metadata_csum(sb) || ext4_has_feature_ea_inode(sb))
@@ -5700,7 +5700,7 @@ static journal_t *ext4_get_journal(struct super_block *sb,
 	if (WARN_ON_ONCE(!ext4_has_feature_journal(sb)))
 		return NULL;
 
-	journal_inode = ext4_get_journal_inode(sb, journal_inum);
+	journal_inode = ext4_get_journal_inode(sb, journal_inum); // jsb在inode8的第一个逻辑块
 	if (!journal_inode)
 		return NULL;
 

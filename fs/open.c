@@ -819,7 +819,7 @@ static int do_dentry_open(struct file *f,
 	/* normally all 3 are set; ->open() can clear them if needed */
 	f->f_mode |= FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE;
 	if (!open)
-		open = f->f_op->open;
+		open = f->f_op->open; // 使用对应文件系统中fops中的open打开这个文件
 	if (open) {
 		error = open(inode, f);
 		if (error)

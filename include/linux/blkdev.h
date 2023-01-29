@@ -151,7 +151,7 @@ struct gendisk {
 	struct mutex open_mutex;	/* open/close mutex */
 	unsigned open_partitions;	/* number of open partitions */
 
-	struct backing_dev_info	*bdi;
+	struct backing_dev_info	*bdi; // 每个块设备脏页写回的结构体
 	struct kobject *slave_dir;
 #ifdef CONFIG_BLOCK_HOLDER_DEPRECATED
 	struct list_head slave_bdevs;
@@ -1194,7 +1194,7 @@ static inline unsigned queue_logical_block_size(const struct request_queue *q)
 	int retval = 512;
 
 	if (q && q->limits.logical_block_size)
-		retval = q->limits.logical_block_size;
+		retval = q->limits.logical_block_size; // 扇区大小
 
 	return retval;
 }

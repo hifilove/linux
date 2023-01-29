@@ -32,7 +32,7 @@ static struct rb_root bdi_tree = RB_ROOT;
 LIST_HEAD(bdi_list);
 
 /* bdi_wq serves all asynchronous writeback tasks */
-struct workqueue_struct *bdi_wq;
+struct workqueue_struct *bdi_wq; // 所有块设备的回写工作都挂在这个list
 
 #define K(x) ((x) << (PAGE_SHIFT - 10))
 
@@ -265,7 +265,7 @@ void wb_wakeup_delayed(struct bdi_writeback *wb)
 {
 	unsigned long timeout;
 
-	timeout = msecs_to_jiffies(dirty_writeback_interval * 10);
+	timeout = msecs_to_jiffies(dirty_writeback_interval * 10); // 5秒调用一次
 	spin_lock_bh(&wb->work_lock);
 	if (test_bit(WB_registered, &wb->state))
 		queue_delayed_work(bdi_wq, &wb->dwork, timeout);
@@ -309,7 +309,7 @@ static int wb_init(struct bdi_writeback *wb, struct backing_dev_info *bdi,
 
 	spin_lock_init(&wb->work_lock);
 	INIT_LIST_HEAD(&wb->work_list);
-	INIT_DELAYED_WORK(&wb->dwork, wb_workfn);
+	INIT_DELAYED_WORK(&wb->dwork, wb_workfn); // 块设备脏页写回函数注册
 	INIT_DELAYED_WORK(&wb->bw_dwork, wb_update_bandwidth_workfn);
 	wb->dirty_sleep = jiffies;
 

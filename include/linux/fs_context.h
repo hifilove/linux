@@ -27,9 +27,9 @@ struct vfsmount;
 struct path;
 
 enum fs_context_purpose {
-	FS_CONTEXT_FOR_MOUNT,		/* New superblock for explicit mount */
+	FS_CONTEXT_FOR_MOUNT,		/* New superblock for explicit mount */ // 一次mount
 	FS_CONTEXT_FOR_SUBMOUNT,	/* New superblock for automatic submount */
-	FS_CONTEXT_FOR_RECONFIGURE,	/* Superblock reconfiguration (remount) */
+	FS_CONTEXT_FOR_RECONFIGURE,	/* Superblock reconfiguration (remount) */ // remount
 };
 
 /*
@@ -60,16 +60,16 @@ enum fs_value_type {
 /*
  * Configuration parameter.
  */
-struct fs_parameter {
+struct fs_parameter { // mount挂载参数[key:value]键值对
 	const char		*key;		/* Parameter name */
-	enum fs_value_type	type:8;		/* The type of value here */
-	union {
+	enum fs_value_type	type:8;		/* The type of value here */ // value的类型enum fs_value_type
+	union { // value
 		char		*string;
 		void		*blob;
 		struct filename	*name;
 		struct file	*file;
 	};
-	size_t	size;
+	size_t	size; // value的长度
 	int	dirfd;
 };
 
@@ -88,25 +88,25 @@ struct p_log {
  * See Documentation/filesystems/mount_api.rst
  */
 struct fs_context {
-	const struct fs_context_operations *ops;
+	const struct fs_context_operations *ops; // 上下文时候使用的方法
 	struct mutex		uapi_mutex;	/* Userspace access mutex */
-	struct file_system_type	*fs_type;
+	struct file_system_type	*fs_type; // 指向文件系统类型的实例
 	void			*fs_private;	/* The filesystem's context */
 	void			*sget_key;
 	struct dentry		*root;		/* The root and superblock */
 	struct user_namespace	*user_ns;	/* The user namespace for this mount */
 	struct net		*net_ns;	/* The network namespace for this mount */
 	const struct cred	*cred;		/* The mounter's credentials */
-	struct p_log		log;		/* Logging buffer */
-	const char		*source;	/* The source name (eg. dev path) */
+	struct p_log		log;		/* Logging buffer */ // 上下文日志空间
+	const char		*source;	/* The source name (eg. dev path) */ // 块设备的名字,也可以是远端盘
 	void			*security;	/* Linux S&M options */
-	void			*s_fs_info;	/* Proposed s_fs_info */
-	unsigned int		sb_flags;	/* Proposed superblock flags (SB_*) */
+	void			*s_fs_info;	/* Proposed s_fs_info */ // vfs层的superblock
+	unsigned int		sb_flags;	/* Proposed superblock flags (SB_*) */ // 挂载选项
 	unsigned int		sb_flags_mask;	/* Superblock flags that were changed */
 	unsigned int		s_iflags;	/* OR'd with sb->s_iflags */
 	unsigned int		lsm_flags;	/* Information flags from the fs to the LSM */
-	enum fs_context_purpose	purpose:8;
-	enum fs_context_phase	phase:8;	/* The phase the context is in */
+	enum fs_context_purpose	purpose:8; // 文件系统上下文的意图 enum fs_context_purpose
+	enum fs_context_phase	phase:8;	/* The phase the context is in */ // 当前文件系统挂载过程中的哪个阶段enum fs_context_phase
 	bool			need_free:1;	/* Need to call ops->free() */
 	bool			global:1;	/* Goes into &init_user_ns */
 	bool			oldapi:1;	/* Coming from mount(2) */
@@ -115,9 +115,9 @@ struct fs_context {
 struct fs_context_operations {
 	void (*free)(struct fs_context *fc);
 	int (*dup)(struct fs_context *fc, struct fs_context *src_fc);
-	int (*parse_param)(struct fs_context *fc, struct fs_parameter *param);
+	int (*parse_param)(struct fs_context *fc, struct fs_parameter *param); // 解析文件系统特有的参数
 	int (*parse_monolithic)(struct fs_context *fc, void *data);
-	int (*get_tree)(struct fs_context *fc);
+	int (*get_tree)(struct fs_context *fc); // 得到root dentry
 	int (*reconfigure)(struct fs_context *fc);
 };
 

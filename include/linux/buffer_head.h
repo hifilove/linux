@@ -355,7 +355,7 @@ static inline void wait_on_buffer(struct buffer_head *bh)
 		__wait_on_buffer(bh);
 }
 
-static inline int trylock_buffer(struct buffer_head *bh)
+static inline int trylock_buffer(struct buffer_head *bh) // success:true
 {
 	return likely(!test_and_set_bit_lock(BH_Lock, &bh->b_state));
 }

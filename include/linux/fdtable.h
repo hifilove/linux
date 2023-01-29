@@ -26,10 +26,10 @@
 
 struct fdtable {
 	unsigned int max_fds;
-	struct file __rcu **fd;      /* current fd array */
-	unsigned long *close_on_exec;
-	unsigned long *open_fds;
-	unsigned long *full_fds_bits;
+	struct file __rcu **fd;      /* current fd array */ // 当前task打开的文件的数组
+	unsigned long *close_on_exec; // 位图记录系统调用execve时会关闭的文件，execve在fork的时候会被调用，即在fork的时候不被fork的位图
+	unsigned long *open_fds; // 被使用的文件描述符的位图的情况
+	unsigned long *full_fds_bits; // 位图的每一行是否被占满
 	struct rcu_head rcu;
 };
 

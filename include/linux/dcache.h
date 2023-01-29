@@ -80,12 +80,12 @@ extern const struct qstr dotdot_name;
 
 struct dentry {
 	/* RCU lookup touched fields */
-	unsigned int d_flags;		/* protected by d_lock */
+	unsigned int d_flags;		/* protected by d_lock */ // DCACHE_MOUNTED:说明这个dentry上挂载着一个文件系统
 	seqcount_spinlock_t d_seq;	/* per dentry seqlock */
 	struct hlist_bl_node d_hash;	/* lookup hash list */
-	struct dentry *d_parent;	/* parent directory */
+	struct dentry *d_parent;	/* parent directory */ // 父目录
 	struct qstr d_name;
-	struct inode *d_inode;		/* Where the name belongs to - NULL is
+	struct inode *d_inode;		/* Where the name belongs to - NULL is // 当前目录的inode
 					 * negative */
 	unsigned char d_iname[DNAME_INLINE_LEN];	/* small names */
 
@@ -100,13 +100,13 @@ struct dentry {
 		struct list_head d_lru;		/* LRU list */
 		wait_queue_head_t *d_wait;	/* in-lookup ones only */
 	};
-	struct list_head d_child;	/* child of parent list */
-	struct list_head d_subdirs;	/* our children */
+	struct list_head d_child;	/* child of parent list */ // 挂入父节点的子目录链表
+	struct list_head d_subdirs;	/* our children */ // 子目录链表
 	/*
 	 * d_alias and d_rcu can share memory
 	 */
 	union {
-		struct hlist_node d_alias;	/* inode alias list */
+		struct hlist_node d_alias;	/* inode alias list */ // 挂入inode中的硬链接链表
 		struct hlist_bl_node d_in_lookup_hash;	/* only for in-lookup ones */
 	 	struct rcu_head d_rcu;
 	} d_u;

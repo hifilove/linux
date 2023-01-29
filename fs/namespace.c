@@ -68,7 +68,7 @@ static u64 event;
 static DEFINE_IDA(mnt_id_ida);
 static DEFINE_IDA(mnt_group_ida);
 
-static struct hlist_head *mount_hashtable __read_mostly;
+static struct hlist_head *mount_hashtable __read_mostly; // 所有mount实例都挂在这个list上
 static struct hlist_head *mountpoint_hashtable __read_mostly;
 static struct kmem_cache *mnt_cache __read_mostly;
 static DECLARE_RWSEM(namespace_sem);
@@ -2295,7 +2295,7 @@ retry:
 		return ERR_PTR(-ENOENT);
 	}
 	namespace_lock();
-	mnt = lookup_mnt(path);
+	mnt = lookup_mnt(path); // 如果这个目录有挂载文件系统，就将这个文件系统的根dentry返回，如果没有返回NULL
 	if (likely(!mnt)) {
 		struct mountpoint *mp = get_mountpoint(dentry);
 		if (IS_ERR(mp)) {
@@ -2946,7 +2946,7 @@ static int do_add_mount(struct mount *newmnt, struct mountpoint *mp,
 		return -EINVAL;
 
 	newmnt->mnt.mnt_flags = mnt_flags;
-	return graft_tree(newmnt, parent, mp);
+	return graft_tree(newmnt, parent, mp); // 将新建立的mount结构体加入到全局文件系统树
 }
 
 static bool mount_too_revealing(const struct super_block *sb, int *new_mnt_flags);
@@ -3007,7 +3007,7 @@ static int do_new_mount(struct path *path, const char *fstype, int sb_flags,
 	if (!fstype)
 		return -EINVAL;
 
-	type = get_fs_type(fstype);
+	type = get_fs_type(fstype); // 获得文件系统的type的结构体
 	if (!type)
 		return -ENODEV;
 
@@ -3039,7 +3039,7 @@ static int do_new_mount(struct path *path, const char *fstype, int sb_flags,
 	if (!err)
 		err = vfs_get_tree(fc);
 	if (!err)
-		err = do_new_mount_fc(fc, path, mnt_flags);
+		err = do_new_mount_fc(fc, path, mnt_flags); // 将这个vfsmount加入到全局目录中
 
 	put_fs_context(fc);
 	return err;
@@ -3295,7 +3295,7 @@ static char *copy_mount_string(const void __user *data)
 int path_mount(const char *dev_name, struct path *path,
 		const char *type_page, unsigned long flags, void *data_page)
 {
-	unsigned int mnt_flags = 0, sb_flags;
+	unsigned int mnt_flags = 0, sb_flags; // 后面将flags分为mnt 和 sb
 	int ret;
 
 	/* Discard magic */
@@ -3377,7 +3377,7 @@ long do_mount(const char *dev_name, const char __user *dir_name,
 	struct path path;
 	int ret;
 
-	ret = user_path_at(AT_FDCWD, dir_name, LOOKUP_FOLLOW, &path);
+	ret = user_path_at(AT_FDCWD, dir_name, LOOKUP_FOLLOW, &path); // 获得挂载位置
 	if (ret)
 		return ret;
 	ret = path_mount(dev_name, &path, type_page, flags, data_page);
@@ -3572,7 +3572,7 @@ SYSCALL_DEFINE5(mount, char __user *, dev_name, char __user *, dir_name,
 	char *kernel_type;
 	char *kernel_dev;
 	void *options;
-
+	// 拷贝用户态到内核态
 	kernel_type = copy_mount_string(type);
 	ret = PTR_ERR(kernel_type);
 	if (IS_ERR(kernel_type))

@@ -198,13 +198,13 @@ __find_get_block_slow(struct block_device *bdev, sector_t block)
 	int all_mapped = 1;
 	static DEFINE_RATELIMIT_STATE(last_warned, HZ, 1);
 
-	index = block >> (PAGE_SHIFT - bd_inode->i_blkbits);
-	page = find_get_page_flags(bd_mapping, index, FGP_ACCESSED);
+	index = block >> (PAGE_SHIFT - bd_inode->i_blkbits); // block是块的块号，因为内存中的page大小是4k所以，需要得到在mapping是第几个偏移（page为党单位）
+	page = find_get_page_flags(bd_mapping, index, FGP_ACCESSED); // 根据偏移获得page
 	if (!page)
 		goto out;
 
 	spin_lock(&bd_mapping->private_lock);
-	if (!page_has_buffers(page))
+	if (!page_has_buffers(page)) // 没有bh的话就直接返回去下io找了
 		goto out_unlock;
 	head = page_buffers(page);
 	bh = head;
@@ -838,6 +838,7 @@ struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size,
 
 		/* Link the buffer to its page */
 		set_bh_page(bh, page, offset);
+		ooouu
 	}
 out:
 	set_active_memcg(old_memcg);
@@ -943,7 +944,7 @@ grow_dev_page(struct block_device *bdev, sector_t block,
 	 */
 	gfp_mask |= __GFP_NOFAIL;
 
-	page = find_or_create_page(inode->i_mapping, index, gfp_mask);
+	page = find_or_create_page(inode->i_mapping, index, gfp_mask); // 查找mapping中的page，如果有就返回page，如果没有就创建page
 
 	BUG_ON(!PageLocked(page));
 
@@ -962,7 +963,7 @@ grow_dev_page(struct block_device *bdev, sector_t block,
 	/*
 	 * Allocate some buffers for this page
 	 */
-	bh = alloc_page_buffers(page, size, true);
+	bh = alloc_page_buffers(page, size, true); // 给这个page创建bh,填满
 
 	/*
 	 * Link the page to the buffers and initialise them.  Take the
@@ -993,7 +994,7 @@ grow_buffers(struct block_device *bdev, sector_t block, int size, gfp_t gfp)
 	int sizebits;
 
 	sizebits = PAGE_SHIFT - __ffs(size);
-	index = block >> sizebits;
+	index = block >> sizebits; // 得到page的偏移
 
 	/*
 	 * Check for a block which wants to lie outside our maximum possible
@@ -1031,11 +1032,11 @@ __getblk_slow(struct block_device *bdev, sector_t block,
 		struct buffer_head *bh;
 		int ret;
 
-		bh = __find_get_block(bdev, block, size);
+		bh = __find_get_block(bdev, block, size); // 再次bh确认不在cache中
 		if (bh)
 			return bh;
 
-		ret = grow_buffers(bdev, block, size, gfp);
+		ret = grow_buffers(bdev, block, size, gfp); // 新建了bh之后会循环回到上到的find并返回bh
 		if (ret < 0)
 			return NULL;
 	}
@@ -1225,7 +1226,7 @@ static inline void check_irqs_on(void)
  * inserted at the front, and the buffer_head at the back if any is evicted.
  * Or, if already in the LRU it is moved to the front.
  */
-static void bh_lru_install(struct buffer_head *bh)
+static void bh_lru_install(struct buffer_head *bh) // 满前插后释放，不满放，在内则前移动
 {
 	struct buffer_head *evictee = bh;
 	struct bh_lru *b;
@@ -1263,7 +1264,7 @@ static void bh_lru_install(struct buffer_head *bh)
  * Look up the bh in this cpu's LRU.  If it's there, move it to the head.
  */
 static struct buffer_head *
-lookup_bh_lru(struct block_device *bdev, sector_t block, unsigned size)
+lookup_bh_lru(struct block_device *bdev, sector_t block, unsigned size) // per cpu bh指针数组中找，新使用到的放最前面
 {
 	struct buffer_head *ret = NULL;
 	unsigned int i;
@@ -1304,7 +1305,7 @@ __find_get_block(struct block_device *bdev, sector_t block, unsigned size)
 
 	if (bh == NULL) {
 		/* __find_get_block_slow will mark the page accessed */
-		bh = __find_get_block_slow(bdev, block);
+		bh = __find_get_block_slow(bdev, block); // 查找对应page并获得其中的bh，因为没有传入FGP_CREAT,所以只会放回null，并不会创建新的page和bh,新的page和bh在上层__getblk_slow中去创建
 		if (bh)
 			bh_lru_install(bh);
 	} else
@@ -1326,7 +1327,7 @@ struct buffer_head *
 __getblk_gfp(struct block_device *bdev, sector_t block,
 	     unsigned size, gfp_t gfp)
 {
-	struct buffer_head *bh = __find_get_block(bdev, block, size);
+	struct buffer_head *bh = __find_get_block(bdev, block, size); // 在bhcache和pagecache中找bh，没有返回null
 
 	might_sleep();
 	if (bh == NULL)
@@ -1988,7 +1989,7 @@ int __block_write_begin_int(struct folio *folio, loff_t pos, unsigned len,
 
 	block = (sector_t)folio->index << (PAGE_SHIFT - bbits);
 
-	for(bh = head, block_start = 0; bh != head || !block_start;
+	for(bh = head, block_start = 0; bh != head || !block_start; // 每个page的每个bh初始化 : 1)是否获取块 2)是否把数据读上来
 	    block++, block_start=block_end, bh = bh->b_this_page) {
 		block_end = block_start + blocksize;
 		if (block_end <= from || block_start >= to) {
@@ -2030,7 +2031,7 @@ int __block_write_begin_int(struct folio *folio, loff_t pos, unsigned len,
 				set_buffer_uptodate(bh);
 			continue; 
 		}
-		if (!buffer_uptodate(bh) && !buffer_delay(bh) &&
+		if (!buffer_uptodate(bh) && !buffer_delay(bh) && // 如果delayalloc模式不需要进行block读取
 		    !buffer_unwritten(bh) &&
 		     (block_start < from || block_end > to)) {
 			ll_rw_block(REQ_OP_READ, 0, 1, &bh);
@@ -2040,7 +2041,7 @@ int __block_write_begin_int(struct folio *folio, loff_t pos, unsigned len,
 	/*
 	 * If we issued read requests - let them complete.
 	 */
-	while(wait_bh > wait) {
+	while(wait_bh > wait) { // 等待bh都读上来了
 		wait_on_buffer(*--wait_bh);
 		if (!buffer_uptodate(*wait_bh))
 			err = -EIO;

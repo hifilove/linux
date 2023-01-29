@@ -113,9 +113,9 @@ struct bdi_writeback {
 	unsigned long state;		/* Always use atomic bitops on this */
 	unsigned long last_old_flush;	/* last old data flush */
 
-	struct list_head b_dirty;	/* dirty inodes */
-	struct list_head b_io;		/* parked for writeback */
-	struct list_head b_more_io;	/* parked for more writeback */
+	struct list_head b_dirty;	/* dirty inodes */ // 本文件系统中脏的inode都会挂载这个list中，在__mark_inode_dirty使用这个链表
+	struct list_head b_io;		/* parked for writeback */ // 等待被脏页写回的inodelist
+	struct list_head b_more_io;	/* parked for more writeback */ // 如果一个inode中的脏页没有完全被回写，加入list
 	struct list_head b_dirty_time;	/* time stamps are dirty */
 	spinlock_t list_lock;		/* protects the b_* lists */
 
@@ -144,8 +144,8 @@ struct bdi_writeback {
 	enum wb_reason start_all_reason;
 
 	spinlock_t work_lock;		/* protects work_list & dwork scheduling */
-	struct list_head work_list;
-	struct delayed_work dwork;	/* work item used for writeback */
+	struct list_head work_list; // 插入wb_writeback_work
+	struct delayed_work dwork;	/* work item used for writeback */ // 会把这个延时工作插入到bdi_wq中
 	struct delayed_work bw_dwork;	/* work item used for bandwidth estimate */
 
 	unsigned long dirty_sleep;	/* last wait */
@@ -169,7 +169,7 @@ struct bdi_writeback {
 #endif
 };
 
-struct backing_dev_info {
+struct backing_dev_info { // 一个disk有一个bdi
 	u64 id;
 	struct rb_node rb_node; /* keyed by ->id */
 	struct list_head bdi_list;
@@ -187,7 +187,7 @@ struct backing_dev_info {
 	 */
 	atomic_long_t tot_write_bandwidth;
 
-	struct bdi_writeback wb;  /* the root writeback info for this bdi */
+	struct bdi_writeback wb;  /* the root writeback info for this bdi */ // bdi_writeback
 	struct list_head wb_list; /* list of all wbs */
 #ifdef CONFIG_CGROUP_WRITEBACK
 	struct radix_tree_root cgwb_tree; /* radix tree of active cgroup wbs */

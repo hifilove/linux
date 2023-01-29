@@ -419,7 +419,7 @@ int pagecache_write_end(struct file *, struct address_space *mapping,
  * @private_data: For use by the owner of the address_space.
  */
 struct address_space {
-	struct inode		*host;
+	struct inode		*host; // inode
 	struct xarray		i_pages;
 	struct rw_semaphore	invalidate_lock;
 	gfp_t			gfp_mask;
@@ -596,7 +596,7 @@ struct inode {
 
 	const struct inode_operations	*i_op;
 	struct super_block	*i_sb;
-	struct address_space	*i_mapping;
+	struct address_space	*i_mapping; // 含有本inode数据页所在adderss_space
 
 #ifdef CONFIG_SECURITY
 	void			*i_security;
@@ -651,7 +651,7 @@ struct inode {
 	struct list_head	i_sb_list;
 	struct list_head	i_wb_list;	/* backing dev writeback list */
 	union {
-		struct hlist_head	i_dentry;
+		struct hlist_head	i_dentry; // 当前inode的硬链接目录链表 
 		struct rcu_head		i_rcu;
 	};
 	atomic64_t		i_version;
@@ -667,7 +667,7 @@ struct inode {
 		void (*free_inode)(struct inode *);
 	};
 	struct file_lock_context	*i_flctx;
-	struct address_space	i_data;
+	struct address_space	i_data; // 本个inode的address_space
 	struct list_head	i_devices;
 	union {
 		struct pipe_inode_info	*i_pipe;
@@ -1430,7 +1430,7 @@ struct sb_writers {
 	struct percpu_rw_semaphore	rw_sem[SB_FREEZE_LEVELS];
 };
 
-struct super_block {
+struct super_block { // vfs层统一的sb
 	struct list_head	s_list;		/* Keep this first */
 	dev_t			s_dev;		/* search index; _not_ kdev_t */
 	unsigned char		s_blocksize_bits;
@@ -1464,11 +1464,11 @@ struct super_block {
 	__u16 s_encoding_flags;
 #endif
 	struct hlist_bl_head	s_roots;	/* alternate root dentries for NFS */
-	struct list_head	s_mounts;	/* list of mounts; _not_ for fs use */
+	struct list_head	s_mounts;	/* list of mounts; _not_ for fs use */ // 这个文件系统的所有mount实例,因为文件系统可能被挂载多次
 	struct block_device	*s_bdev;
 	struct backing_dev_info *s_bdi;
 	struct mtd_info		*s_mtd;
-	struct hlist_node	s_instances;
+	struct hlist_node	s_instances; // 每个文件系统的实例通过这个挂在file_system_type->fs_supers上
 	unsigned int		s_quota_types;	/* Bitmask of supported quota types */
 	struct quota_info	s_dquot;	/* Diskquota specific options */
 
@@ -1479,7 +1479,7 @@ struct super_block {
 	 * s_fsnotify_marks together for cache efficiency. They are frequently
 	 * accessed and rarely modified.
 	 */
-	void			*s_fs_info;	/* Filesystem private info */
+	void			*s_fs_info;	/* Filesystem private info */ // ************************
 
 	/* Granularity of c/m/atime in ns (cannot be worse than a second) */
 	u32			s_time_gran;
@@ -2292,9 +2292,9 @@ static inline void kiocb_clone(struct kiocb *kiocb, struct kiocb *kiocb_src,
  *
  * Q: What is the difference between I_WILL_FREE and I_FREEING?
  */
-#define I_DIRTY_SYNC		(1 << 0)
+#define I_DIRTY_SYNC		(1 << 0) // inode脏
 #define I_DIRTY_DATASYNC	(1 << 1)
-#define I_DIRTY_PAGES		(1 << 2)
+#define I_DIRTY_PAGES		(1 << 2) // 只有脏页，inode可能是干净的
 #define __I_NEW			3
 #define I_NEW			(1 << __I_NEW)
 #define I_WILL_FREE		(1 << 4)
@@ -2383,7 +2383,7 @@ extern int file_modified(struct file *file);
 int sync_inode_metadata(struct inode *inode, int wait);
 
 struct file_system_type {
-	const char *name;
+	const char *name; // 文件系统名字
 	int fs_flags;
 #define FS_REQUIRES_DEV		1 
 #define FS_BINARY_MOUNTDATA	2
@@ -2392,14 +2392,14 @@ struct file_system_type {
 #define FS_DISALLOW_NOTIFY_PERM	16	/* Disable fanotify permission events */
 #define FS_ALLOW_IDMAP         32      /* FS has been updated to handle vfs idmappings. */
 #define FS_RENAME_DOES_D_MOVE	32768	/* FS will handle d_move() during rename() internally. */
-	int (*init_fs_context)(struct fs_context *);
-	const struct fs_parameter_spec *parameters;
-	struct dentry *(*mount) (struct file_system_type *, int,
+	int (*init_fs_context)(struct fs_context *); // 初始化文件系统的上下文
+	const struct fs_parameter_spec *parameters; // 每个文件系统可以用于挂载的参数，这是一个数组
+	struct dentry *(*mount) (struct file_system_type *, int, // 挂载文件系统时使用的回调函数
 		       const char *, void *);
-	void (*kill_sb) (struct super_block *);
+	void (*kill_sb) (struct super_block *); // 删除内存中的sb,卸载的时候使用
 	struct module *owner;
-	struct file_system_type * next;
-	struct hlist_head fs_supers;
+	struct file_system_type * next; // 指向下一个文件系统类型的链表指针
+	struct hlist_head fs_supers; // 此类型的文件系统挂载在这个链表下,super_block->s_instances
 
 	struct lock_class_key s_lock_key;
 	struct lock_class_key s_umount_key;
@@ -2584,12 +2584,12 @@ static inline int break_layout(struct inode *inode, bool wait)
 
 /* fs/open.c */
 struct audit_names;
-struct filename {
-	const char		*name;	/* pointer to actual string */
-	const __user char	*uptr;	/* original userland pointer */
+struct filename { // 一般申请的时候会申请一个页来保存一个路径，如果超过一个页会将这个结构体移出，剩下的空间为一个路径，所以一个路径最大长度是一个页的大小
+	const char		*name;	/* pointer to actual string */ // 指向pathname字符串的起始地址
+	const __user char	*uptr;	/* original userland pointer */ // 指向用户态传入路径的地址
 	int			refcnt;
 	struct audit_names	*aname;
-	const char		iname[];
+	const char		iname[]; // 保存pathname的空间
 };
 static_assert(offsetof(struct filename, iname) % sizeof(long) == 0);
 

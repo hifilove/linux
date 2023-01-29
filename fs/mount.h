@@ -13,7 +13,7 @@ struct mnt_namespace {
 	 * - taking namespace_sem for write, OR
 	 * - taking namespace_sem for read AND taking .ns_lock.
 	 */
-	struct list_head	list;
+	struct list_head	list; // 记录这个ns中所有已经挂载的文件系统
 	spinlock_t		ns_lock;
 	struct user_namespace	*user_ns;
 	struct ucounts		*ucounts;
@@ -36,11 +36,11 @@ struct mountpoint {
 	int m_count;
 };
 
-struct mount {
-	struct hlist_node mnt_hash;
-	struct mount *mnt_parent;
-	struct dentry *mnt_mountpoint;
-	struct vfsmount mnt;
+struct mount { // 每个文件系统要挂如vfs时准备的结构体
+	struct hlist_node mnt_hash; // 全局已挂载文件系统的哈希链表
+	struct mount *mnt_parent; // 指向父文件系统的mount结构体
+	struct dentry *mnt_mountpoint; // 指向文件系统挂载点的dentry
+	struct vfsmount mnt; // 此文件系统vfsmount实例
 	union {
 		struct rcu_head mnt_rcu;
 		struct llist_node mnt_llist;
@@ -51,18 +51,18 @@ struct mount {
 	int mnt_count;
 	int mnt_writers;
 #endif
-	struct list_head mnt_mounts;	/* list of children, anchored here */
-	struct list_head mnt_child;	/* and going through their mnt_child */
-	struct list_head mnt_instance;	/* mount instance on sb->s_mounts */
-	const char *mnt_devname;	/* Name of device e.g. /dev/dsk/hda1 */
-	struct list_head mnt_list;
+	struct list_head mnt_mounts;	/* list of children, anchored here */ // 所有子文件系统的链表
+	struct list_head mnt_child;	/* and going through their mnt_child */ // 挂载到父文件系统的mnt_mounts上
+	struct list_head mnt_instance;	/* mount instance on sb->s_mounts */ // 链接到sb上的一个mount实例
+	const char *mnt_devname;	/* Name of device e.g. /dev/dsk/hda1 */ // 设备名
+	struct list_head mnt_list; // 链接到ns中list上,表头为mnt_namespace->list
 	struct list_head mnt_expire;	/* link in fs-specific expiry list */
 	struct list_head mnt_share;	/* circular list of shared mounts */
 	struct list_head mnt_slave_list;/* list of slave mounts */
 	struct list_head mnt_slave;	/* slave list entry */
 	struct mount *mnt_master;	/* slave is on master->mnt_slave_list */
-	struct mnt_namespace *mnt_ns;	/* containing namespace */
-	struct mountpoint *mnt_mp;	/* where is it mounted */
+	struct mnt_namespace *mnt_ns;	/* containing namespace */ // 指向这个mount挂载的mnt_namespace
+	struct mountpoint *mnt_mp;	/* where is it mounted */ // 当前文件系统的挂载点
 	union {
 		struct hlist_node mnt_mp_list;	/* list mounts with the same mountpoint */
 		struct hlist_node mnt_umount;
@@ -88,7 +88,7 @@ static inline struct mount *real_mount(struct vfsmount *mnt)
 
 static inline int mnt_has_parent(struct mount *mnt)
 {
-	return mnt != mnt->mnt_parent;
+	return mnt != mnt->mnt_parent; // rootfs的mnt->parent指向自己的mount结构
 }
 
 static inline int is_mounted(struct vfsmount *mnt)

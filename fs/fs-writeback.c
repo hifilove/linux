@@ -1361,7 +1361,7 @@ static int move_expired_inodes(struct list_head *delaying_queue,
 	int do_sb_sort = 0;
 	int moved = 0;
 
-	while (!list_empty(delaying_queue)) {
+	while (!list_empty(delaying_queue)) { // 计算出脏inodelist中超时的inode
 		inode = wb_inode(delaying_queue->prev);
 		if (inode_dirtied_after(inode, dirtied_before))
 			break;
@@ -1383,7 +1383,7 @@ static int move_expired_inodes(struct list_head *delaying_queue,
 		goto out;
 	}
 
-	/* Move inodes from one superblock together */
+	/* Move inodes from one superblock together */ // 将同个文件系统的脏inode放进来
 	while (!list_empty(&tmp)) {
 		sb = wb_inode(tmp.prev)->i_sb;
 		list_for_each_prev_safe(pos, node, &tmp) {
@@ -1991,7 +1991,7 @@ static long wb_writeback(struct bdi_writeback *wb,
 		/*
 		 * Stop writeback when nr_pages has been consumed
 		 */
-		if (work->nr_pages <= 0)
+		if (work->nr_pages <= 0) // 到达预期的脏页数量
 			break;
 
 		/*
@@ -2008,7 +2008,7 @@ static long wb_writeback(struct bdi_writeback *wb,
 		 * For background writeout, stop when we are below the
 		 * background dirty threshold
 		 */
-		if (work->for_background && !wb_over_bg_thresh(wb))
+		if (work->for_background && !wb_over_bg_thresh(wb)) // 如果超过是阈值模式，判断是否超过阈值
 			break;
 
 		/*
@@ -2019,17 +2019,17 @@ static long wb_writeback(struct bdi_writeback *wb,
 		 */
 		if (work->for_kupdate) {
 			dirtied_before = jiffies -
-				msecs_to_jiffies(dirty_expire_interval * 10);
+				msecs_to_jiffies(dirty_expire_interval * 10); // 计算出到此时为止的超时时间是多少
 		} else if (work->for_background)
 			dirtied_before = jiffies;
 
 		trace_writeback_start(wb, work);
-		if (list_empty(&wb->b_io))
-			queue_io(wb, work, dirtied_before);
+		if (list_empty(&wb->b_io)) // 如果需要io的inodelist已经空了
+			queue_io(wb, work, dirtied_before); // 将b_more_io / b_dirty上的inode加入其中
 		if (work->sb)
 			progress = writeback_sb_inodes(work->sb, wb, work);
 		else
-			progress = __writeback_inodes_wb(wb, work);
+			progress = __writeback_inodes_wb(wb, work); // 遍历每个脏的inode会刷脏页
 		trace_writeback_written(wb, work);
 
 		/*
@@ -2057,7 +2057,7 @@ static long wb_writeback(struct bdi_writeback *wb,
 		spin_lock(&inode->i_lock);
 		spin_unlock(&wb->list_lock);
 		/* This function drops i_lock... */
-		inode_sleep_on_writeback(inode);
+		inode_sleep_on_writeback(inode); // 等待inode已经sync
 		spin_lock(&wb->list_lock);
 	}
 	spin_unlock(&wb->list_lock);
@@ -2085,7 +2085,7 @@ static struct wb_writeback_work *get_next_work_item(struct bdi_writeback *wb)
 
 static long wb_check_background_flush(struct bdi_writeback *wb)
 {
-	if (wb_over_bg_thresh(wb)) {
+	if (wb_over_bg_thresh(wb)) { // 超过阈值返回true
 
 		struct wb_writeback_work work = {
 			.nr_pages	= LONG_MAX,
@@ -2182,8 +2182,8 @@ static long wb_do_writeback(struct bdi_writeback *wb)
 	/*
 	 * Check for periodic writeback, kupdated() style
 	 */
-	wrote += wb_check_old_data_flush(wb);
-	wrote += wb_check_background_flush(wb);
+	wrote += wb_check_old_data_flush(wb); // 脏页在内存中时间过长 (脏页超过30秒)
+	wrote += wb_check_background_flush(wb); // 脏页数量超过阈值
 	clear_bit(WB_writeback_running, &wb->state);
 
 	return wrote;
@@ -2193,7 +2193,7 @@ static long wb_do_writeback(struct bdi_writeback *wb)
  * Handle writeback of dirty data for the device backed by this bdi. Also
  * reschedules periodically and does kupdated style flushing.
  */
-void wb_workfn(struct work_struct *work)
+void wb_workfn(struct work_struct *work) // 在__mark_inode_dirty函数中会将这个函数启动
 {
 	struct bdi_writeback *wb = container_of(to_delayed_work(work),
 						struct bdi_writeback, dwork);
@@ -2210,7 +2210,7 @@ void wb_workfn(struct work_struct *work)
 		 * rescuer as work_list needs to be drained.
 		 */
 		do {
-			pages_written = wb_do_writeback(wb);
+			pages_written = wb_do_writeback(wb); // 回写
 			trace_writeback_pages_written(pages_written);
 		} while (!list_empty(&wb->work_list));
 	} else {
@@ -2226,8 +2226,8 @@ void wb_workfn(struct work_struct *work)
 
 	if (!list_empty(&wb->work_list))
 		wb_wakeup(wb);
-	else if (wb_has_dirty_io(wb) && dirty_writeback_interval)
-		wb_wakeup_delayed(wb);
+	else if (wb_has_dirty_io(wb) && dirty_writeback_interval) // 如果没有脏页就不加
+		wb_wakeup_delayed(wb); // 延时后继续执行本函数
 }
 
 /*
@@ -2446,7 +2446,7 @@ void __mark_inode_dirty(struct inode *inode, int flags)
 			else
 				dirty_list = &wb->b_dirty_time;
 
-			wakeup_bdi = inode_io_list_move_locked(inode, wb,
+			wakeup_bdi = inode_io_list_move_locked(inode, wb, // 将inode加入wb的脏inode list上
 							       dirty_list);
 
 			spin_unlock(&wb->list_lock);
@@ -2460,7 +2460,7 @@ void __mark_inode_dirty(struct inode *inode, int flags)
 			 */
 			if (wakeup_bdi &&
 			    (wb->bdi->capabilities & BDI_CAP_WRITEBACK))
-				wb_wakeup_delayed(wb);
+				wb_wakeup_delayed(wb); // 将脏页回写延时任务启动
 			return;
 		}
 	}

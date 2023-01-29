@@ -283,11 +283,11 @@ static struct fs_context *alloc_fs_context(struct file_system_type *fs_type,
 	}
 
 	/* TODO: Make all filesystems support this unconditionally */
-	init_fs_context = fc->fs_type->init_fs_context;
+	init_fs_context = fc->fs_type->init_fs_context; // 每个文件系统有自己的初始化函数
 	if (!init_fs_context)
 		init_fs_context = legacy_init_fs_context;
 
-	ret = init_fs_context(fc);
+	ret = init_fs_context(fc); // 每个文件系统有自己的初始化函数
 	if (ret < 0)
 		goto err_fc;
 	fc->need_free = true;
