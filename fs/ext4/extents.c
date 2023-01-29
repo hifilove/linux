@@ -1630,7 +1630,7 @@ found_extent:
  * with leaves.
  */
 ext4_lblk_t
-ext4_ext_next_allocated_block(struct ext4_ext_path *path)
+ext4_ext_next_allocated_block(struct ext4_ext_path *path) // 获得右边的逻辑块起始
 {
 	int depth;
 
@@ -2870,7 +2870,7 @@ again:
 		 * tail of the first part of the split extent in
 		 * ext4_ext_rm_leaf().
 		 */
-		if (end >= ee_block && end < ex_end) {
+		if (end >= ee_block && end < ex_end) { // 如果end是在一个extent中间的话是需要将这个end分裂出来变成一个新的extent的
 
 			/*
 			 * If we're going to split the extent, note that
@@ -3462,7 +3462,7 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 	 *  - L2: we only attempt to merge with an extent stored in the
 	 *    same extent tree node.
 	 */
-	if ((map->m_lblk == ee_block) &&
+	if ((map->m_lblk == ee_block) && // map == [ex, ex + len)
 		/* See if we can merge left */
 		(map_len < ee_len) &&		/*L1*/
 		(ex > EXT_FIRST_EXTENT(eh))) {	/*L2*/
@@ -3470,7 +3470,7 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 		ext4_fsblk_t prev_pblk, ee_pblk;
 		unsigned int prev_len;
 
-		abut_ex = ex - 1;
+		abut_ex = ex - 1; // 当前path中的前一个leaf
 		prev_lblk = le32_to_cpu(abut_ex->ee_block);
 		prev_len = ext4_ext_get_actual_len(abut_ex);
 		prev_pblk = ext4_ext_pblock(abut_ex);
@@ -3479,9 +3479,9 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 		/*
 		 * A transfer of blocks from 'ex' to 'abut_ex' is allowed
 		 * upon those conditions:
-		 * - C1: abut_ex is initialized,
-		 * - C2: abut_ex is logically abutting ex,
-		 * - C3: abut_ex is physically abutting ex,
+		 * - C1: abut_ex is initialized, // 前一个叶子也已经清零
+		 * - C2: abut_ex is logically abutting ex, // 前一个叶子的逻辑块和本个叶子相连
+		 * - C3: abut_ex is physically abutting ex, // 前一个叶子的物理块和本个叶子相连
 		 * - C4: abut_ex can receive the additional blocks without
 		 *   overflowing the (initialized) length limit.
 		 */

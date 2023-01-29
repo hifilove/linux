@@ -562,7 +562,7 @@ EXPORT_SYMBOL(path_put);
 #define EMBEDDED_LEVELS 2
 struct nameidata {
 	struct path	path;
-	struct qstr	last;
+	struct qstr	last; // 存放需要解析的路径
 	struct path	root;
 	struct inode	*inode; /* path.dentry.d_inode */
 	unsigned int	flags, state;
@@ -575,7 +575,7 @@ struct nameidata {
 		struct delayed_call done;
 		const char *name;
 		unsigned seq;
-	} *stack, internal[EMBEDDED_LEVELS];
+	} *stack, internal[EMBEDDED_LEVELS]; // link的时候使用
 	struct filename	*name;
 	struct nameidata *saved;
 	unsigned	root_seq;

@@ -1204,19 +1204,19 @@ static long do_sys_openat2(int dfd, const char __user *filename,
 	if (fd)
 		return fd;
 
-	tmp = getname(filename);
+	tmp = getname(filename); // copy_from_user(filename)
 	if (IS_ERR(tmp))
 		return PTR_ERR(tmp);
 
-	fd = get_unused_fd_flags(how->flags);
+	fd = get_unused_fd_flags(how->flags); // 获得没有使用的用户态的fd号
 	if (fd >= 0) {
-		struct file *f = do_filp_open(dfd, tmp, &op);
+		struct file *f = do_filp_open(dfd, tmp, &op); // 文件的路径查找和打开
 		if (IS_ERR(f)) {
-			put_unused_fd(fd);
+			put_unused_fd(fd); // 如果失败回收用户态fd号
 			fd = PTR_ERR(f);
 		} else {
 			fsnotify_open(f);
-			fd_install(fd, f);
+			fd_install(fd, f); // 成功则安装fd，也就是将信息什么的加入到用户态的fd_tabale中
 		}
 	}
 	putname(tmp);
@@ -1234,7 +1234,7 @@ SYSCALL_DEFINE3(open, const char __user *, filename, int, flags, umode_t, mode)
 {
 	if (force_o_largefile())
 		flags |= O_LARGEFILE;
-	return do_sys_open(AT_FDCWD, filename, flags, mode);
+	return do_sys_open(AT_FDCWD, filename, flags, mode); // 根据filename打开文件
 }
 
 SYSCALL_DEFINE4(openat, int, dfd, const char __user *, filename, int, flags,
@@ -1242,7 +1242,7 @@ SYSCALL_DEFINE4(openat, int, dfd, const char __user *, filename, int, flags,
 {
 	if (force_o_largefile())
 		flags |= O_LARGEFILE;
-	return do_sys_open(dfd, filename, flags, mode);
+	return do_sys_open(dfd, filename, flags, mode); // 在某个fd的路径下打开filename文件
 }
 
 SYSCALL_DEFINE4(openat2, int, dfd, const char __user *, filename,
