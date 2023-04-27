@@ -2168,7 +2168,7 @@ static long wb_do_writeback(struct bdi_writeback *wb)
 	long wrote = 0;
 
 	set_bit(WB_writeback_running, &wb->state);
-	while ((work = get_next_work_item(wb)) != NULL) {
+	while ((work = get_next_work_item(wb)) != NULL) { // 将bdi_writeback中的work_list都搞出来跑
 		trace_writeback_exec(wb, work);
 		wrote += wb_writeback(wb, work);
 		finish_writeback_work(wb, work);
@@ -2193,7 +2193,7 @@ static long wb_do_writeback(struct bdi_writeback *wb)
  * Handle writeback of dirty data for the device backed by this bdi. Also
  * reschedules periodically and does kupdated style flushing.
  */
-void wb_workfn(struct work_struct *work) // 在__mark_inode_dirty函数中会将这个函数启动
+void wb_workfn(struct work_struct *work) // 在__mark_inode_dirty函数中会将这个函数启动 (负责拉起wb->work_list上的脏页回写工作)
 {
 	struct bdi_writeback *wb = container_of(to_delayed_work(work),
 						struct bdi_writeback, dwork);
@@ -2212,7 +2212,7 @@ void wb_workfn(struct work_struct *work) // 在__mark_inode_dirty函数中会将
 		do {
 			pages_written = wb_do_writeback(wb); // 回写
 			trace_writeback_pages_written(pages_written);
-		} while (!list_empty(&wb->work_list));
+		} while (!list_empty(&wb->work_list)); // 遍历wb->work_list中的wb任务
 	} else {
 		/*
 		 * bdi_wq can't get enough workers and we're running off
@@ -2225,7 +2225,7 @@ void wb_workfn(struct work_struct *work) // 在__mark_inode_dirty函数中会将
 	}
 
 	if (!list_empty(&wb->work_list))
-		wb_wakeup(wb);
+		wb_wakeup(wb); // 如果还有wb任务，直接唤醒当前函数
 	else if (wb_has_dirty_io(wb) && dirty_writeback_interval) // 如果没有脏页就不加
 		wb_wakeup_delayed(wb); // 延时后继续执行本函数
 }

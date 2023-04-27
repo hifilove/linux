@@ -16,7 +16,7 @@
 #include <linux/device.h>
 #include <trace/events/writeback.h>
 
-struct backing_dev_info noop_backing_dev_info;
+struct backing_dev_info noop_backing_dev_info; // 好像已经弃用了，为每一个文件系统回写元数据的bdi，会放在super_block->s_bdi中
 EXPORT_SYMBOL_GPL(noop_backing_dev_info);
 
 static struct class *bdi_class;
@@ -32,7 +32,7 @@ static struct rb_root bdi_tree = RB_ROOT;
 LIST_HEAD(bdi_list);
 
 /* bdi_wq serves all asynchronous writeback tasks */
-struct workqueue_struct *bdi_wq; // 所有块设备的回写工作都挂在这个list
+struct workqueue_struct *bdi_wq;
 
 #define K(x) ((x) << (PAGE_SHIFT - 10))
 

@@ -145,7 +145,7 @@ struct bdi_writeback {
 
 	spinlock_t work_lock;		/* protects work_list & dwork scheduling */
 	struct list_head work_list; // 插入wb_writeback_work
-	struct delayed_work dwork;	/* work item used for writeback */ // 会把这个延时工作插入到bdi_wq中
+	struct delayed_work dwork;	/* work item used for writeback */ // 会把这个延时工作插入到bdi_wq中 wb_workfn
 	struct delayed_work bw_dwork;	/* work item used for bandwidth estimate */
 
 	unsigned long dirty_sleep;	/* last wait */
@@ -169,7 +169,7 @@ struct bdi_writeback {
 #endif
 };
 
-struct backing_dev_info { // 一个disk有一个bdi
+struct backing_dev_info { // 一个disk有一个bdi , 创建之后会插入到bdi_list中
 	u64 id;
 	struct rb_node rb_node; /* keyed by ->id */
 	struct list_head bdi_list;
@@ -187,8 +187,8 @@ struct backing_dev_info { // 一个disk有一个bdi
 	 */
 	atomic_long_t tot_write_bandwidth;
 
-	struct bdi_writeback wb;  /* the root writeback info for this bdi */ // bdi_writeback
-	struct list_head wb_list; /* list of all wbs */
+	struct bdi_writeback wb;  /* the root writeback info for this bdi */
+	struct list_head wb_list; /* list of all wbs */ // add_disk后，会初始话上面的wb然后把他插入到这个机构体中
 #ifdef CONFIG_CGROUP_WRITEBACK
 	struct radix_tree_root cgwb_tree; /* radix tree of active cgroup wbs */
 	struct mutex cgwb_release_mutex;  /* protect shutdown of wb structs */

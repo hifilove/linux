@@ -38,8 +38,8 @@ struct backing_dev_info;
  * fs/fs-writeback.c
  */
 enum writeback_sync_modes {
-	WB_SYNC_NONE,	/* Don't wait on anything */
-	WB_SYNC_ALL,	/* Wait on every mapping */
+	WB_SYNC_NONE,	/* Don't wait on anything */  // 跳过被锁住的inode
+	WB_SYNC_ALL,	/* Wait on every mapping */ // 等待被锁住的inode/
 };
 
 /*
@@ -60,7 +60,7 @@ struct writeback_control {
 	loff_t range_start;
 	loff_t range_end;
 
-	enum writeback_sync_modes sync_mode;
+	enum writeback_sync_modes sync_mode; // 同步模式
 
 	unsigned for_kupdate:1;		/* A kupdate writeback */
 	unsigned for_background:1;	/* A background writeback */

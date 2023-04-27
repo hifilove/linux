@@ -1409,7 +1409,7 @@ out_put_queue:
 }
 EXPORT_SYMBOL(__alloc_disk_node);
 
-struct gendisk *__blk_alloc_disk(int node, struct lock_class_key *lkclass)
+struct gendisk *__blk_alloc_disk(int node, struct lock_class_key *lkclass) // 创建disk中的bdi结构体，后面再add_disk的时候加入到list管理
 {
 	struct request_queue *q;
 	struct gendisk *disk;
