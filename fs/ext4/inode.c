@@ -2669,7 +2669,7 @@ static int ext4_writepages(struct address_space *mapping,
 	 * a transaction for special inodes like journal inode on last iput()
 	 * because that could violate lock ordering on umount
 	 */
-	if (!mapping->nrpages || !mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
+	if (!mapping->nrpages || !mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) // 如果这个mapping中没有页面或者mapping不是dirty，则跳过
 		goto out_writepages;
 
 	if (ext4_should_journal_data(inode)) {
@@ -2720,7 +2720,7 @@ static int ext4_writepages(struct address_space *mapping,
 						PAGE_SIZE >> inode->i_blkbits);
 	}
 
-	if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX)
+	if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX) // 如果是回写整个文件
 		range_whole = 1;
 
 	if (wbc->range_cyclic) {
@@ -2729,7 +2729,7 @@ static int ext4_writepages(struct address_space *mapping,
 			cycled = 0;
 		mpd.first_page = writeback_index;
 		mpd.last_page = -1;
-	} else {
+	} else { // 如果没有使用range_cyclic使用[range_start, range_end]
 		mpd.first_page = wbc->range_start >> PAGE_SHIFT;
 		mpd.last_page = wbc->range_end >> PAGE_SHIFT;
 	}

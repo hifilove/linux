@@ -882,7 +882,7 @@ int bdi_register_va(struct backing_dev_info *bdi, const char *fmt, va_list args)
 	if (IS_ERR(dev))
 		return PTR_ERR(dev);
 
-	cgwb_bdi_register(bdi);
+	cgwb_bdi_register(bdi); // 把自己的root wb加入到wb_list中
 	bdi->dev = dev;
 
 	bdi_debug_register(bdi, dev_name(dev));
@@ -896,7 +896,7 @@ int bdi_register_va(struct backing_dev_info *bdi, const char *fmt, va_list args)
 	rb_link_node(&bdi->rb_node, parent, p);
 	rb_insert_color(&bdi->rb_node, &bdi_tree);
 
-	list_add_tail_rcu(&bdi->bdi_list, &bdi_list);
+	list_add_tail_rcu(&bdi->bdi_list, &bdi_list); // 将bdi加入到全局变量bdi_list中
 
 	spin_unlock_bh(&bdi_lock);
 

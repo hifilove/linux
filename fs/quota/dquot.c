@@ -818,7 +818,7 @@ struct dquot *dquot_alloc(struct super_block *sb, int type)
 }
 EXPORT_SYMBOL(dquot_alloc);
 
-static struct dquot *get_empty_dquot(struct super_block *sb, int type)
+static struct dquot *get_empty_dquot(struct super_block *sb, int type) // 获得一个空的quota结构（内存中）
 {
 	struct dquot *dquot;
 
@@ -868,11 +868,11 @@ we_slept:
 	}
 	spin_unlock(&dq_state_lock);
 
-	dquot = find_dquot(hashent, sb, qid);
+	dquot = find_dquot(hashent, sb, qid); // 在hash中找这个quota结构
 	if (!dquot) {
 		if (!empty) {
 			spin_unlock(&dq_list_lock);
-			empty = get_empty_dquot(sb, qid.type);
+			empty = get_empty_dquot(sb, qid.type); // malloc
 			if (!empty)
 				schedule();	/* Try to wait for a moment... */
 			goto we_slept;
@@ -901,7 +901,7 @@ we_slept:
 	if (!test_bit(DQ_ACTIVE_B, &dquot->dq_flags)) {
 		int err;
 
-		err = sb->dq_op->acquire_dquot(dquot);
+		err = sb->dq_op->acquire_dquot(dquot); // alloc space on disk
 		if (err < 0) {
 			dqput(dquot);
 			dquot = ERR_PTR(err);

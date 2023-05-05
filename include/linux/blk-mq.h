@@ -91,7 +91,7 @@ struct request {
 	unsigned int __data_len;	/* total data len */
 	sector_t __sector;		/* sector cursor */
 
-	struct bio *bio;
+	struct bio *bio; // 每个请求由很多bio组成
 	struct bio *biotail;
 
 	union {

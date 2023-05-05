@@ -45,7 +45,7 @@ struct block_device {
 	bool			bd_read_only;	/* read-only policy */
 	dev_t			bd_dev;
 	int			bd_openers;
-	struct inode *		bd_inode;	/* will die */
+	struct inode *		bd_inode;	/* will die */ // inode of bdevfs
 	struct super_block *	bd_super;
 	void *			bd_claiming;
 	struct device		bd_device;
@@ -55,7 +55,7 @@ struct block_device {
 	struct kobject		*bd_holder_dir;
 	u8			bd_partno;
 	spinlock_t		bd_size_lock; /* for bd_inode->i_size updates */
-	struct gendisk *	bd_disk;
+	struct gendisk *	bd_disk; // disk
 	struct request_queue *	bd_queue;
 
 	/* The counter of freeze processes */

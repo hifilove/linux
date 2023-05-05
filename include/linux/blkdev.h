@@ -124,20 +124,20 @@ struct gendisk {
 	 * major/first_minor/minors should not be set by any new driver, the
 	 * block core will take care of allocating them automatically.
 	 */
-	int major;
-	int first_minor;
-	int minors;
+	int major; // major devnum
+	int first_minor; // first part devnum
+	int minors; // num of part
 
 	char disk_name[DISK_NAME_LEN];	/* name of major driver */
 
 	unsigned short events;		/* supported events */
 	unsigned short event_flags;	/* flags related to event processing */
 
-	struct xarray part_tbl;
+	struct xarray part_tbl; // all of part
 	struct block_device *part0;
 
-	const struct block_device_operations *fops;
-	struct request_queue *queue;
+	const struct block_device_operations *fops; // operations of this block device
+	struct request_queue *queue; // 块设备上的请求队列
 	void *private_data;
 
 	int flags;

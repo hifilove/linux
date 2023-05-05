@@ -48,9 +48,9 @@ enum writeback_sync_modes {
  * in a manner such that unspecified fields are set to zero.
  */
 struct writeback_control {
-	long nr_to_write;		/* Write this many pages, and decrement
+	long nr_to_write;		/* Write this many pages, and decrement // 要回写的脏页的数量
 					   this for each page written */
-	long pages_skipped;		/* Pages which were not written */
+	long pages_skipped;		/* Pages which were not written */ // 跳过回写的页面
 
 	/*
 	 * For a_ops->writepages(): if start or end are non-zero then this is
@@ -62,11 +62,11 @@ struct writeback_control {
 
 	enum writeback_sync_modes sync_mode; // 同步模式
 
-	unsigned for_kupdate:1;		/* A kupdate writeback */
-	unsigned for_background:1;	/* A background writeback */
+	unsigned for_kupdate:1;		/* A kupdate writeback */ // 表示回写操作是周期性机制
+	unsigned for_background:1;	/* A background writeback */ // 表示后台回写
 	unsigned tagged_writepages:1;	/* tag-and-write to avoid livelock */
 	unsigned for_reclaim:1;		/* Invoked from the page allocator */
-	unsigned range_cyclic:1;	/* range_start is cyclic */
+	unsigned range_cyclic:1;	/* range_start is cyclic */ // 0表示回写范围在[range_start, range_end]
 	unsigned for_sync:1;		/* sync(2) WB_SYNC_ALL writeback */
 	unsigned unpinned_fscache_wb:1;	/* Cleared I_PINNING_FSCACHE_WB */
 

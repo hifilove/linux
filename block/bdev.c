@@ -450,7 +450,7 @@ static struct file_system_type bd_type = {
 	.kill_sb	= kill_anon_super,
 };
 
-struct super_block *blockdev_superblock __read_mostly;
+struct super_block *blockdev_superblock __read_mostly; // super_block of bdevfs
 EXPORT_SYMBOL_GPL(blockdev_superblock);
 
 void __init bdev_cache_init(void)
@@ -732,7 +732,7 @@ struct block_device *blkdev_get_no_open(dev_t dev)
 	struct block_device *bdev;
 	struct inode *inode;
 
-	inode = ilookup(blockdev_superblock, dev);
+	inode = ilookup(blockdev_superblock, dev); // find inode in bdevfs in inodecache
 	if (!inode && IS_ENABLED(CONFIG_BLOCK_LEGACY_AUTOLOAD)) {
 		blk_request_module(dev);
 		inode = ilookup(blockdev_superblock, dev);
@@ -791,7 +791,7 @@ struct block_device *blkdev_get_by_dev(dev_t dev, fmode_t mode, void *holder)
 	if (ret)
 		return ERR_PTR(ret);
 
-	bdev = blkdev_get_no_open(dev);
+	bdev = blkdev_get_no_open(dev); // get block_devic from devnum
 	if (!bdev)
 		return ERR_PTR(-ENXIO);
 	disk = bdev->bd_disk;
@@ -867,18 +867,18 @@ EXPORT_SYMBOL(blkdev_get_by_dev);
  * RETURNS:
  * Reference to the block_device on success, ERR_PTR(-errno) on failure.
  */
-struct block_device *blkdev_get_by_path(const char *path, fmode_t mode,
+struct block_device *blkdev_get_by_path(const char *path, fmode_t mode, // mount的时候会调用而且是FMODE_EXCL模式
 					void *holder)
 {
 	struct block_device *bdev;
 	dev_t dev;
 	int error;
 
-	error = lookup_bdev(path, &dev);
+	error = lookup_bdev(path, &dev); // find devnum
 	if (error)
 		return ERR_PTR(error);
 
-	bdev = blkdev_get_by_dev(dev, mode, holder);
+	bdev = blkdev_get_by_dev(dev, mode, holder); // get block_device from devnum
 	if (!IS_ERR(bdev) && (mode & FMODE_WRITE) && bdev_read_only(bdev)) {
 		blkdev_put(bdev, mode);
 		return ERR_PTR(-EACCES);

@@ -84,7 +84,7 @@ struct dentry {
 	seqcount_spinlock_t d_seq;	/* per dentry seqlock */
 	struct hlist_bl_node d_hash;	/* lookup hash list */
 	struct dentry *d_parent;	/* parent directory */ // 父目录
-	struct qstr d_name;
+	struct qstr d_name; // m目录名字
 	struct inode *d_inode;		/* Where the name belongs to - NULL is // 当前目录的inode
 					 * negative */
 	unsigned char d_iname[DNAME_INLINE_LEN];	/* small names */

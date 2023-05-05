@@ -291,7 +291,7 @@ static inline void dqstats_dec(unsigned int type)
 				 * and the quota format handling dquot can\
 				 * clear them when it sees fit. */
 
-struct dquot {
+struct dquot { a quota record in memory
 	struct hlist_node dq_hash;	/* Hash list in memory [dq_list_lock] */
 	struct list_head dq_inuse;	/* List of all quotas [dq_list_lock] */
 	struct list_head dq_free;	/* Free list element [dq_list_lock] */

@@ -583,10 +583,10 @@ struct fsnotify_mark_connector;
  * of the 'struct inode'
  */
 struct inode {
-	umode_t			i_mode;
+	umode_t			i_mode; // 访问权限
 	unsigned short		i_opflags;
-	kuid_t			i_uid;
-	kgid_t			i_gid;
+	kuid_t			i_uid; // 使用者id
+	kgid_t			i_gid; // 使用组id
 	unsigned int		i_flags;
 
 #ifdef CONFIG_FS_POSIX_ACL
@@ -615,7 +615,7 @@ struct inode {
 		const unsigned int i_nlink;
 		unsigned int __i_nlink;
 	};
-	dev_t			i_rdev;
+	dev_t			i_rdev; // devnum
 	loff_t			i_size;
 	struct timespec64	i_atime;
 	struct timespec64	i_mtime;
@@ -1431,7 +1431,7 @@ struct sb_writers {
 };
 
 struct super_block { // vfs层统一的sb
-	struct list_head	s_list;		/* Keep this first */
+	struct list_head	s_list;		/* Keep this first */ // 超级块之间相互链接
 	dev_t			s_dev;		/* search index; _not_ kdev_t */
 	unsigned char		s_blocksize_bits;
 	unsigned long		s_blocksize;
@@ -1445,7 +1445,7 @@ struct super_block { // vfs层统一的sb
 	unsigned long		s_iflags;	/* internal SB_I_* flags */
 	unsigned long		s_magic;
 	struct dentry		*s_root;
-	struct rw_semaphore	s_umount;
+	struct rw_semaphore	s_umount; // 对超级快读写时进行同步
 	int			s_count;
 	atomic_t		s_active;
 #ifdef CONFIG_SECURITY
@@ -1470,7 +1470,7 @@ struct super_block { // vfs层统一的sb
 	struct mtd_info		*s_mtd;
 	struct hlist_node	s_instances; // 每个文件系统的实例通过这个挂在file_system_type->fs_supers上
 	unsigned int		s_quota_types;	/* Bitmask of supported quota types */
-	struct quota_info	s_dquot;	/* Diskquota specific options */
+	struct quota_info	s_dquot;	/* Diskquota specific options */ // record quota inode
 
 	struct sb_writers	s_writers;
 
@@ -2080,12 +2080,12 @@ extern loff_t vfs_dedupe_file_range_one(struct file *src_file, loff_t src_pos,
 
 
 struct super_operations {
-   	struct inode *(*alloc_inode)(struct super_block *sb);
-	void (*destroy_inode)(struct inode *);
+   	struct inode *(*alloc_inode)(struct super_block *sb); // 初始化inode
+	void (*destroy_inode)(struct inode *); // 释放inode
 	void (*free_inode)(struct inode *);
 
-   	void (*dirty_inode) (struct inode *, int flags);
-	int (*write_inode) (struct inode *, struct writeback_control *wbc);
+   	void (*dirty_inode) (struct inode *, int flags); // inode内容被修改标记一下
+	int (*write_inode) (struct inode *, struct writeback_control *wbc); // 将指定inode写回磁盘
 	int (*drop_inode) (struct inode *);
 	void (*evict_inode) (struct inode *);
 	void (*put_super) (struct super_block *);
@@ -2094,7 +2094,7 @@ struct super_operations {
 	int (*freeze_fs) (struct super_block *);
 	int (*thaw_super) (struct super_block *);
 	int (*unfreeze_fs) (struct super_block *);
-	int (*statfs) (struct dentry *, struct kstatfs *);
+	int (*statfs) (struct dentry *, struct kstatfs *); // 获取文件系统状态
 	int (*remount_fs) (struct super_block *, int *, char *);
 	void (*umount_begin) (struct super_block *);
 

@@ -116,7 +116,7 @@ struct bdi_writeback {
 	struct list_head b_dirty;	/* dirty inodes */ // 本文件系统中脏的inode都会挂载这个list中，在__mark_inode_dirty使用这个链表
 	struct list_head b_io;		/* parked for writeback */ // 等待被脏页写回的inodelist
 	struct list_head b_more_io;	/* parked for more writeback */ // 如果一个inode中的脏页没有完全被回写，加入list
-	struct list_head b_dirty_time;	/* time stamps are dirty */
+	struct list_head b_dirty_time;	/* time stamps are dirty */ // 只是修改inode时间的inodelist
 	spinlock_t list_lock;		/* protects the b_* lists */
 
 	atomic_t writeback_inodes;	/* number of inodes under writeback */

@@ -626,7 +626,7 @@ int qtree_read_dquot(struct qtree_mem_dqinfo *info, struct dquot *dquot)
 #endif
 	/* Do we know offset of the dquot entry in the quota file? */
 	if (!dquot->dq_off) {
-		offset = find_dqentry(info, dquot);
+		offset = find_dqentry(info, dquot); // if quota not in quota file ror first read quota data
 		if (offset <= 0) {	/* Entry not present? */
 			if (offset < 0)
 				quota_error(sb,"Can't read quota structure "
@@ -644,9 +644,9 @@ int qtree_read_dquot(struct qtree_mem_dqinfo *info, struct dquot *dquot)
 	ddquot = kmalloc(info->dqi_entry_size, GFP_NOFS);
 	if (!ddquot)
 		return -ENOMEM;
-	ret = sb->s_op->quota_read(sb, type, ddquot, info->dqi_entry_size,
+	ret = sb->s_op->quota_read(sb, type, ddquot, info->dqi_entry_size, // read quota data in file
 				   dquot->dq_off);
-	if (ret != info->dqi_entry_size) {
+	if (ret != info->dqi_entry_size) { // error of size not same
 		if (ret >= 0)
 			ret = -EIO;
 		quota_error(sb, "Error while reading quota structure for id %u",
@@ -657,7 +657,7 @@ int qtree_read_dquot(struct qtree_mem_dqinfo *info, struct dquot *dquot)
 		goto out;
 	}
 	spin_lock(&dquot->dq_dqb_lock);
-	info->dqi_ops->disk2mem_dqblk(dquot, ddquot);
+	info->dqi_ops->disk2mem_dqblk(dquot, ddquot); // disk data cp to mem
 	if (!dquot->dq_dqb.dqb_bhardlimit &&
 	    !dquot->dq_dqb.dqb_bsoftlimit &&
 	    !dquot->dq_dqb.dqb_ihardlimit &&
