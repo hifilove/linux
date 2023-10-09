@@ -2847,8 +2847,8 @@ int path_pts(struct path *path)
 int user_path_at_empty(int dfd, const char __user *name, unsigned flags,
 		 struct path *path, int *empty)
 {
-	struct filename *filename = getname_flags(name, flags, empty);
-	int ret = filename_lookup(dfd, filename, flags, path, NULL);
+	struct filename *filename = getname_flags(name, flags, empty); // copy user to kernel and save name in filename
+	int ret = filename_lookup(dfd, filename, flags, path, NULL); // look up the path
 
 	putname(filename);
 	return ret;

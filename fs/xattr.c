@@ -548,27 +548,27 @@ setxattr(struct user_namespace *mnt_userns, struct dentry *d,
 	void *kvalue = NULL;
 	char kname[XATTR_NAME_MAX + 1];
 
-	if (flags & ~(XATTR_CREATE|XATTR_REPLACE))
+	if (flags & ~(XATTR_CREATE|XATTR_REPLACE)) // if have other bit, return
 		return -EINVAL;
 
-	error = strncpy_from_user(kname, name, sizeof(kname));
+	error = strncpy_from_user(kname, name, sizeof(kname)); // save name to kname
 	if (error == 0 || error == sizeof(kname))
 		error = -ERANGE;
 	if (error < 0)
 		return error;
 
 	if (size) {
-		if (size > XATTR_SIZE_MAX)
+		if (size > XATTR_SIZE_MAX) // xattr value size is too big
 			return -E2BIG;
 		kvalue = kvmalloc(size, GFP_KERNEL);
 		if (!kvalue)
 			return -ENOMEM;
-		if (copy_from_user(kvalue, value, size)) {
+		if (copy_from_user(kvalue, value, size)) { // save value to kvalue
 			error = -EFAULT;
 			goto out;
 		}
 		if ((strcmp(kname, XATTR_NAME_POSIX_ACL_ACCESS) == 0) ||
-		    (strcmp(kname, XATTR_NAME_POSIX_ACL_DEFAULT) == 0))
+		    (strcmp(kname, XATTR_NAME_POSIX_ACL_DEFAULT) == 0)) // if kname equal "system.posix_acl_access" or "system.posix_acl_default", it will check posix acl attribute
 			posix_acl_fix_xattr_from_user(mnt_userns, d_inode(d),
 						      kvalue, size);
 	}
@@ -591,9 +591,9 @@ retry:
 	error = user_path_at(AT_FDCWD, pathname, lookup_flags, &path);
 	if (error)
 		return error;
-	error = mnt_want_write(path.mnt);
+	error = mnt_want_write(path.mnt); // Check whether the mount point can be written
 	if (!error) {
-		error = setxattr(mnt_user_ns(path.mnt), path.dentry, name,
+		error = setxattr(mnt_user_ns(path.mnt), path.dentry, name, // if can be written, call setxattr
 				 value, size, flags);
 		mnt_drop_write(path.mnt);
 	}
