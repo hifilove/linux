@@ -66,8 +66,8 @@ enum scsi_cmnd_submitter {
 } __packed;
 
 struct scsi_cmnd {
-	struct scsi_device *device;
-	struct list_head eh_entry; /* entry for the host eh_abort_list/eh_cmd_q */
+	struct scsi_device *device; // send to which device
+	struct list_head eh_entry; /* entry for the host eh_abort_list/eh_cmd_q */ // entry to abort list in host when this cmd is abort
 	struct delayed_work abort_work;
 
 	struct rcu_head rcu;
@@ -97,7 +97,7 @@ struct scsi_cmnd {
 	unsigned char cmnd[32]; /* SCSI CDB */
 
 	/* These elements define the operation we ultimately want to perform */
-	struct scsi_data_buffer sdb;
+	struct scsi_data_buffer sdb; // scsi command data buffer
 	struct scsi_data_buffer *prot_sdb;
 
 	unsigned underflow;	/* Return error if less than

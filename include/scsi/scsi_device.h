@@ -101,7 +101,7 @@ struct scsi_vpd {
 };
 
 struct scsi_device {
-	struct Scsi_Host *host;
+	struct Scsi_Host *host; // scsi device to scsi host
 	struct request_queue *request_queue;
 
 	/* the next two are protected by the host->host_lock */
@@ -124,7 +124,7 @@ struct scsi_device {
 
 	unsigned long last_queue_ramp_up;	/* last queue ramp up time */
 
-	unsigned int id, channel;
+	unsigned int id, channel; // number of hostid channelid and lunid
 	u64 lun;
 	unsigned int manufacturer;	/* Manufacturer of device, for using 
 					 * vendor-specific cmd's */
@@ -136,10 +136,10 @@ struct scsi_device {
 	char inq_periph_qual;	/* PQ from INQUIRY data */	
 	struct mutex inquiry_mutex;
 	unsigned char inquiry_len;	/* valid bytes in 'inquiry' */
-	unsigned char * inquiry;	/* INQUIRY response data */
-	const char * vendor;		/* [back_compat] point into 'inquiry' ... */
-	const char * model;		/* ... after scan; point to static string */
-	const char * rev;		/* ... "nullnullnullnull" before scan */
+	unsigned char * inquiry;	/* INQUIRY response data */ // when scsi scan, host send inquiry command to device and get some msg from device, the msg save in this space
+	const char * vendor;		/* [back_compat] point into 'inquiry' ... */ // 8-15 company id
+	const char * model;		/* ... after scan; point to static string */ // 16-31 product id
+	const char * rev;		/* ... "nullnullnullnull" before scan */ // 32-35 product correction version
 
 #define SCSI_VPD_PG_LEN                255
 	struct scsi_vpd __rcu *vpd_pg0;
@@ -225,7 +225,7 @@ struct scsi_device {
 	atomic_t iodone_cnt;
 	atomic_t ioerr_cnt;
 
-	struct device		sdev_gendev,
+	struct device		sdev_gendev, // join kilst_devices in scsi_bus_type by sdev_gendev
 				sdev_dev;
 
 	struct execute_work	ew; /* used to get process context on put */
@@ -297,16 +297,16 @@ enum scsi_target_state {
  * starget_sdev_user is NULL, else it points to the active sdev.
  */
 struct scsi_target {
-	struct scsi_device	*starget_sdev_user;
+	struct scsi_device	*starget_sdev_user; // a scsi_device is doing io new, when single_lun is on
 	struct list_head	siblings;
-	struct list_head	devices;
-	struct device		dev;
+	struct list_head	devices; // scsi device list
+	struct device		dev; // join scsi_bus_type on kilst_device by this variable
 	struct kref		reap_ref; /* last put renders target invisible */
 	unsigned int		channel;
 	unsigned int		id; /* target id ... replace
 				     * scsi_device.id eventually */
 	unsigned int		create:1; /* signal that it needs to be added */
-	unsigned int		single_lun:1;	/* Indicates we should only
+	unsigned int		single_lun:1;	/* Indicates we should only // 如果说这个节点只有一个lun的话，这个标记位会被置1
 						 * allow I/O to one of the luns
 						 * for the device at a time. */
 	unsigned int		pdt_1f_for_no_lun:1;	/* PDT = 0x1f

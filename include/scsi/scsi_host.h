@@ -538,8 +538,8 @@ struct Scsi_Host {
 	 * their __ prefixed variants with the lock held. NEVER
 	 * access this list directly from a driver.
 	 */
-	struct list_head	__devices;
-	struct list_head	__targets;
+	struct list_head	__devices; // scsi devices list
+	struct list_head	__targets; // scsi target list
 	
 	struct list_head	starved_list;
 
@@ -687,7 +687,7 @@ struct Scsi_Host {
 	enum scsi_host_state shost_state;
 
 	/* ldm bits */
-	struct device		shost_gendev, shost_dev;
+	struct device		shost_gendev, shost_dev; // 1)join scsi_bus_type on kilst_device by shost_gendev 2)all scsi_host is on class_device in  shost_class by shost_dev
 
 	/*
 	 * Points to the transport data (if any) which is allocated

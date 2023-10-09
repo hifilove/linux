@@ -108,7 +108,7 @@ struct bus_type {
 
 	const struct iommu_ops *iommu_ops;
 
-	struct subsys_private *p;
+	struct subsys_private *p; // devices / driver
 	struct lock_class_key lock_key;
 
 	bool need_parent_lock;
