@@ -9,7 +9,7 @@
 struct module;
 struct request;
 
-struct scsi_driver {
+struct scsi_driver { // scsi driver
 	struct device_driver	gendrv;
 
 	void (*rescan)(struct device *);

@@ -377,7 +377,7 @@ struct scsi_host_template {
 	 * your setup is in single initiator mode, and the host lacks an
 	 * ID.
 	 */
-	int this_id;
+	int this_id; // some specific sdapters have scsi id with target id
 
 	/*
 	 * This determines the degree to which the host adapter is capable
@@ -554,7 +554,7 @@ struct Scsi_Host {
 	struct completion     * eh_action; /* Wait for specific actions on the
 					      host. */
 	wait_queue_head_t       host_wait;
-	struct scsi_host_template *hostt;
+	struct scsi_host_template *hostt; // point to scsi_host_template when alloc scsi_host
 	struct scsi_transport_template *transportt;
 
 	/* Area to keep a shared tag map */
@@ -566,7 +566,7 @@ struct Scsi_Host {
 					      protected by host_lock */
 	unsigned int host_eh_scheduled;    /* EH scheduled without command */
     
-	unsigned int host_no;  /* Used for IOCTL_GET_IDLUN, /proc/scsi et al. */
+	unsigned int host_no;  /* Used for IOCTL_GET_IDLUN, /proc/scsi et al. */ // scsi host id
 
 	/* next two fields are used to bound the time spent in error handling */
 	int eh_deadline;
@@ -759,8 +759,8 @@ extern const char *scsi_host_state_name(enum scsi_host_state);
 extern void scsi_host_complete_all_commands(struct Scsi_Host *shost,
 					    enum scsi_host_status status);
 
-static inline int __must_check scsi_add_host(struct Scsi_Host *host,
-					     struct device *dev)
+static inline int __must_check scsi_add_host(struct Scsi_Host *host, // host for which host will be added
+					     struct device *dev) // dev for parent of host, such as pci... it decides where will hostdir in
 {
 	return scsi_add_host_with_dma(host, dev, dev);
 }

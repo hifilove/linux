@@ -761,13 +761,13 @@ static int __init init_scsi(void)
 	error = scsi_init_devinfo();
 	if (error)
 		goto cleanup_procfs;
-	error = scsi_init_hosts();
+	error = scsi_init_hosts(); // register shost_class, then there are scsi_host directory in sys/class/
 	if (error)
 		goto cleanup_devlist;
 	error = scsi_init_sysctl();
 	if (error)
 		goto cleanup_hosts;
-	error = scsi_sysfs_register();
+	error = scsi_sysfs_register(); // register sysfs and sdev_class
 	if (error)
 		goto cleanup_sysctl;
 

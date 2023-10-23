@@ -78,7 +78,7 @@
  * given LUN.
  */
 #define SCSI_SCAN_NO_RESPONSE		0
-#define SCSI_SCAN_TARGET_PRESENT	1
+#define SCSI_SCAN_TARGET_PRESENT	1 // no lun in this lun
 #define SCSI_SCAN_LUN_PRESENT		2
 
 static const char *scsi_null_device_strs = "nullnullnullnull";
@@ -664,7 +664,7 @@ static int scsi_probe_lun(struct scsi_device *sdev, unsigned char *inq_result,
 				pass, try_inquiry_len));
 
 	/* Each pass gets up to three chances to ignore Unit Attention */
-	for (count = 0; count < 3; ++count) {
+	for (count = 0; count < 3; ++count) { // three times
 		int resid;
 
 		memset(scsi_cmd, 0, 6);
@@ -672,9 +672,11 @@ static int scsi_probe_lun(struct scsi_device *sdev, unsigned char *inq_result,
 		scsi_cmd[4] = (unsigned char) try_inquiry_len;
 
 		memset(inq_result, 0, try_inquiry_len);
-
-		result = scsi_execute_req(sdev,  scsi_cmd, DMA_FROM_DEVICE,
-					  inq_result, try_inquiry_len, &sshdr,
+		// SCSI INQUIRY cmd: 深入浅出SCSI子系统（五）
+		// general cmd has 35 byte
+		// peripheral device type == 00h means it is a block device
+		result = scsi_execute_req(sdev,  scsi_cmd, DMA_FROM_DEVICE, // send SCSI INQUIRY
+					  inq_result, try_inquiry_len, &sshdr, // will block
 					  HZ / 2 + HZ * scsi_inq_timeout, 3,
 					  &resid);
 
@@ -725,7 +727,7 @@ static int scsi_probe_lun(struct scsi_device *sdev, unsigned char *inq_result,
 		 * corresponding bit fields in scsi_device, so bflags
 		 * need not be passed as an argument.
 		 */
-		*bflags = scsi_get_device_flags(sdev, &inq_result[8],
+		*bflags = scsi_get_device_flags(sdev, &inq_result[8], // get some special values from lun, and save in scsi_dev_info_list
 				&inq_result[16]);
 
 		/* When the first pass succeeds we gain information about
@@ -1150,8 +1152,8 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	 * The rescan flag is used as an optimization, the first scan of a
 	 * host adapter calls into here with rescan == 0.
 	 */
-	sdev = scsi_device_lookup_by_target(starget, lun);
-	if (sdev) {
+	sdev = scsi_device_lookup_by_target(starget, lun); // find lun in target
+	if (sdev) { // if have 
 		if (rescan != SCSI_SCAN_INITIAL || !scsi_device_created(sdev)) {
 			SCSI_LOG_SCAN_BUS(3, sdev_printk(KERN_INFO, sdev,
 				"scsi scan: device exists on %s\n",
@@ -1168,16 +1170,16 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 			return SCSI_SCAN_LUN_PRESENT;
 		}
 		scsi_device_put(sdev);
-	} else
-		sdev = scsi_alloc_sdev(starget, lun, hostdata);
+	} else // not has in memory
+		sdev = scsi_alloc_sdev(starget, lun, hostdata); // alloc, we can remove after
 	if (!sdev)
 		goto out;
 
-	result = kmalloc(result_len, GFP_KERNEL);
+	result = kmalloc(result_len, GFP_KERNEL); // alloc memory for receive
 	if (!result)
 		goto out_free_sdev;
 
-	if (scsi_probe_lun(sdev, result, result_len, &bflags))
+	if (scsi_probe_lun(sdev, result, result_len, &bflags)) // send SCSI_INQUIRY to get lun* receive
 		goto out_free_result;
 
 	if (bflagsp)
@@ -1185,7 +1187,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	/*
 	 * result contains valid SCSI INQUIRY data.
 	 */
-	if ((result[0] >> 5) == 3) {
+	if ((result[0] >> 5) == 3) { // if peripheral qualifier == 0x11 means this lun has no lun
 		/*
 		 * For a Peripheral qualifier 3 (011b), the SCSI
 		 * spec says: The device server is not capable of
@@ -1237,7 +1239,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	 * PDT=00h Direct-access device (floppy)
 	 * PDT=1Fh none (no FDD connected to the requested logical unit)
 	 */
-	if (((result[0] >> 5) == 1 ||
+	if (((result[0] >> 5) == 1 || // just like over this codes, a combination to tell us has no lun in there
 	    (starget->pdt_1f_for_no_lun && (result[0] & 0x1f) == 0x1f)) &&
 	    !scsi_is_wlun(lun)) {
 		SCSI_LOG_SCAN_BUS(3, sdev_printk(KERN_INFO, sdev,
@@ -1247,7 +1249,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 		goto out_free_result;
 	}
 
-	res = scsi_add_lun(sdev, result, &bflags, shost->async_scan);
+	res = scsi_add_lun(sdev, result, &bflags, shost->async_scan); // the others conditions means this lun is available
 	if (res == SCSI_SCAN_LUN_PRESENT) {
 		if (bflags & BLIST_KEY) {
 			sdev->lockable = 0;
@@ -1639,7 +1641,7 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
 		return;
 	scsi_autopm_get_target(starget);
 
-	if (lun != SCAN_WILD_CARD) {
+	if (lun != SCAN_WILD_CARD) { // specific host/chan/id/lun
 		/*
 		 * Scan for a specific host/chan/id/lun.
 		 */
@@ -1651,14 +1653,14 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
 	 * Scan LUN 0, if there is some response, scan further. Ideally, we
 	 * would not configure LUN 0 until all LUNs are scanned.
 	 */
-	res = scsi_probe_and_add_lun(starget, 0, &bflags, NULL, rescan, NULL);
-	if (res == SCSI_SCAN_LUN_PRESENT || res == SCSI_SCAN_TARGET_PRESENT) {
-		if (scsi_report_lun_scan(starget, bflags, rescan) != 0)
+	res = scsi_probe_and_add_lun(starget, 0, &bflags, NULL, rescan, NULL); // first send lun0, if lun0 has response
+	if (res == SCSI_SCAN_LUN_PRESENT || res == SCSI_SCAN_TARGET_PRESENT) { // if lun0 of target has response
+		if (scsi_report_lun_scan(starget, bflags, rescan) != 0) // if target dev has REPORT_LUN commend, it can send how many lun does it have
 			/*
 			 * The REPORT LUN did not scan the target,
 			 * do a sequential scan.
 			 */
-			scsi_sequential_lun_scan(starget, bflags,
+			scsi_sequential_lun_scan(starget, bflags, // the other, not has REPORT_LUN commend
 						 starget->scsi_level, rescan);
 	}
 
@@ -1668,7 +1670,7 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
 	 * paired with scsi_alloc_target(): determine if the target has
 	 * any children at all and if not, nuke it
 	 */
-	scsi_target_reap(starget);
+	scsi_target_reap(starget); // just like the sentence over this function
 
 	put_device(&starget->dev);
 }
@@ -1722,7 +1724,7 @@ static void scsi_scan_channel(struct Scsi_Host *shost, unsigned int channel,
 	uint order_id;
 
 	if (id == SCAN_WILD_CARD)
-		for (id = 0; id < shost->max_id; ++id) {
+		for (id = 0; id < shost->max_id; ++id) { // scan all target
 			/*
 			 * XXX adapter drivers when possible (FCP, iSCSI)
 			 * could modify max_id to match the current max,
@@ -1732,7 +1734,7 @@ static void scsi_scan_channel(struct Scsi_Host *shost, unsigned int channel,
 			 * the FC ID can be the same as a target id
 			 * without a huge overhead of sparse id's.
 			 */
-			if (shost->reverse_ordering)
+			if (shost->reverse_ordering) // if developer want to reversed
 				/*
 				 * Scan from high to low id.
 				 */
@@ -1747,7 +1749,7 @@ static void scsi_scan_channel(struct Scsi_Host *shost, unsigned int channel,
 				id, lun, rescan);
 }
 
-int scsi_scan_host_selected(struct Scsi_Host *shost, unsigned int channel,
+int scsi_scan_host_selected(struct Scsi_Host *shost, unsigned int channel, // if value == SCAN_WILD_CARD, it will scan all
 			    unsigned int id, u64 lun,
 			    enum scsi_scan_mode rescan)
 {
@@ -1755,23 +1757,23 @@ int scsi_scan_host_selected(struct Scsi_Host *shost, unsigned int channel,
 		"%s: <%u:%u:%llu>\n",
 		__func__, channel, id, lun));
 
-	if (((channel != SCAN_WILD_CARD) && (channel > shost->max_channel)) ||
-	    ((id != SCAN_WILD_CARD) && (id >= shost->max_id)) ||
+	if (((channel != SCAN_WILD_CARD) && (channel > shost->max_channel)) || // if value == SCAN_WILD_CARD, it will scan all
+	    ((id != SCAN_WILD_CARD) && (id >= shost->max_id)) || // and judge value is vaild
 	    ((lun != SCAN_WILD_CARD) && (lun >= shost->max_lun)))
 		return -EINVAL;
 
 	mutex_lock(&shost->scan_mutex);
 	if (!shost->async_scan)
-		scsi_complete_async_scans();
+		scsi_complete_async_scans(); // check async is ok?
 
-	if (scsi_host_scan_allowed(shost) && scsi_autopm_get_host(shost) == 0) {
-		if (channel == SCAN_WILD_CARD)
+	if (scsi_host_scan_allowed(shost) && scsi_autopm_get_host(shost) == 0) { // judge 1 means host want to live
+		if (channel == SCAN_WILD_CARD) // if scan all channel, for
 			for (channel = 0; channel <= shost->max_channel;
 			     channel++)
 				scsi_scan_channel(shost, channel, id, lun,
 						  rescan);
 		else
-			scsi_scan_channel(shost, channel, id, lun, rescan);
+			scsi_scan_channel(shost, channel, id, lun, rescan); // scan one channel
 		scsi_autopm_put_host(shost);
 	}
 	mutex_unlock(&shost->scan_mutex);
@@ -1810,7 +1812,7 @@ static struct async_scan_data *scsi_prep_async_scan(struct Scsi_Host *shost)
 	struct async_scan_data *data = NULL;
 	unsigned long flags;
 
-	if (strncmp(scsi_scan_type, "sync", 4) == 0)
+	if (strncmp(scsi_scan_type, "sync", 4) == 0) // if mode == sync, return NULL
 		return NULL;
 
 	mutex_lock(&shost->scan_mutex);
@@ -1899,14 +1901,14 @@ static void scsi_finish_async_scan(struct async_scan_data *data)
 
 static void do_scsi_scan_host(struct Scsi_Host *shost)
 {
-	if (shost->hostt->scan_finished) {
+	if (shost->hostt->scan_finished) { // specific way to scan device // such as SAS/FC agreement
 		unsigned long start = jiffies;
 		if (shost->hostt->scan_start)
 			shost->hostt->scan_start(shost);
 
 		while (!shost->hostt->scan_finished(shost, jiffies - start))
 			msleep(10);
-	} else {
+	} else { // general way // if SPI agreement, it is standard
 		scsi_scan_host_selected(shost, SCAN_WILD_CARD, SCAN_WILD_CARD,
 				SCAN_WILD_CARD, 0);
 	}
@@ -1929,7 +1931,7 @@ void scsi_scan_host(struct Scsi_Host *shost)
 {
 	struct async_scan_data *data;
 
-	if (strncmp(scsi_scan_type, "none", 4) == 0 ||
+	if (strncmp(scsi_scan_type, "none", 4) == 0 || // if scan type mode == none in .config, return
 	    strncmp(scsi_scan_type, "manual", 6) == 0)
 		return;
 	if (scsi_autopm_get_host(shost) < 0)
@@ -1937,7 +1939,7 @@ void scsi_scan_host(struct Scsi_Host *shost)
 
 	data = scsi_prep_async_scan(shost);
 	if (!data) {
-		do_scsi_scan_host(shost);
+		do_scsi_scan_host(shost); // scsi scan fun
 		scsi_autopm_put_host(shost);
 		return;
 	}

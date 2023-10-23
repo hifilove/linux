@@ -298,9 +298,9 @@ enum scsi_target_state {
  */
 struct scsi_target {
 	struct scsi_device	*starget_sdev_user; // a scsi_device is doing io new, when single_lun is on
-	struct list_head	siblings;
+	struct list_head	siblings; // line to the scsihost
 	struct list_head	devices; // scsi device list
-	struct device		dev; // join scsi_bus_type on kilst_device by this variable
+	struct device		dev; // join scsi_bus_type on kilst_device by this variable // in subsys_private
 	struct kref		reap_ref; /* last put renders target invisible */
 	unsigned int		channel;
 	unsigned int		id; /* target id ... replace

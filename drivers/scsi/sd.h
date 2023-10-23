@@ -67,15 +67,15 @@ enum {
 	SD_ZERO_WS10_UNMAP,	/* Use WRITE SAME(10) with UNMAP */
 };
 
-struct scsi_disk {
-	struct scsi_device *device;
+struct scsi_disk { // scsi disk
+	struct scsi_device *device; // scsi dev
 
 	/*
 	 * disk_dev is used to show attributes in /sys/class/scsi_disk/,
 	 * but otherwise not really needed.  Do not use for refcounting.
 	 */
 	struct device	disk_dev;
-	struct gendisk	*disk;
+	struct gendisk	*disk; // general disk
 	struct opal_dev *opal_dev;
 #ifdef CONFIG_BLK_DEV_ZONED
 	u32		nr_zones;

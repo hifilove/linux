@@ -234,7 +234,7 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 		goto fail;
 
 	if (!shost->shost_gendev.parent)
-		shost->shost_gendev.parent = dev ? dev : &platform_bus;
+		shost->shost_gendev.parent = dev ? dev : &platform_bus; // set scsihost parent link in dev, such as pci, if dev == null, set it platform_bus
 	if (!dma_dev)
 		dma_dev = shost->shost_gendev.parent;
 
@@ -286,11 +286,11 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 		}
 	}
 
-	error = scsi_sysfs_add_host(shost);
+	error = scsi_sysfs_add_host(shost); // add scsihost to scsi subsystem
 	if (error)
 		goto out_del_dev;
 
-	scsi_proc_host_add(shost);
+	scsi_proc_host_add(shost); // add host file by host_no in Scsi_Host, host_no is scsihost id
 	scsi_autopm_put_host(shost);
 	return error;
 
@@ -395,7 +395,7 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	init_waitqueue_head(&shost->host_wait);
 	mutex_init(&shost->scan_mutex);
 
-	index = ida_simple_get(&host_index_ida, 0, 0, GFP_KERNEL);
+	index = ida_simple_get(&host_index_ida, 0, 0, GFP_KERNEL); // get a number for scsihost id
 	if (index < 0) {
 		kfree(shost);
 		return NULL;
@@ -474,19 +474,19 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	if (sht->virt_boundary_mask)
 		shost->virt_boundary_mask = sht->virt_boundary_mask;
 
-	device_initialize(&shost->shost_gendev);
+	device_initialize(&shost->shost_gendev); // link in scsi bus
 	dev_set_name(&shost->shost_gendev, "host%d", shost->host_no);
 	shost->shost_gendev.bus = &scsi_bus_type;
 	shost->shost_gendev.type = &scsi_host_type;
 	scsi_enable_async_suspend(&shost->shost_gendev);
 
-	device_initialize(&shost->shost_dev);
+	device_initialize(&shost->shost_dev); // link in scsihost class
 	shost->shost_dev.parent = &shost->shost_gendev;
 	shost->shost_dev.class = &shost_class;
 	dev_set_name(&shost->shost_dev, "host%d", shost->host_no);
 	shost->shost_dev.groups = sht->shost_groups;
 
-	shost->ehandler = kthread_run(scsi_error_handler, shost,
+	shost->ehandler = kthread_run(scsi_error_handler, shost, // error recover hand
 			"scsi_eh_%d", shost->host_no);
 	if (IS_ERR(shost->ehandler)) {
 		shost_printk(KERN_WARNING, shost,
@@ -504,7 +504,7 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 			     "failed to create tmf workq\n");
 		goto fail;
 	}
-	scsi_proc_hostdir_add(shost->hostt);
+	scsi_proc_hostdir_add(shost->hostt); // add dir in /proc, file name is proc_name in scsi_host_template
 	return shost;
  fail:
 	/*

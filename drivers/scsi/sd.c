@@ -602,7 +602,7 @@ static const struct dev_pm_ops sd_pm_ops = {
 	.runtime_resume		= sd_resume_runtime,
 };
 
-static struct scsi_driver sd_template = {
+static struct scsi_driver sd_template = { // scsi driver example
 	.gendrv = {
 		.name		= "sd",
 		.owner		= THIS_MODULE,
@@ -3193,14 +3193,14 @@ static int sd_revalidate_disk(struct gendisk *disk)
 		goto out;
 	}
 
-	sd_spinup_disk(sdkp);
+	sd_spinup_disk(sdkp); // spin up scsi disk
 
 	/*
 	 * Without media there is no reason to ask; moreover, some devices
 	 * react badly if we do.
 	 */
 	if (sdkp->media_present) {
-		sd_read_capacity(sdkp, buffer);
+		sd_read_capacity(sdkp, buffer); // read disk capacity
 
 		/*
 		 * set the default to rotational.  All non-rotational devices
@@ -3222,7 +3222,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 		sd_print_capacity(sdkp, old_capacity);
 
 		sd_read_write_protect_flag(sdkp, buffer);
-		sd_read_cache_type(sdkp, buffer);
+		sd_read_cache_type(sdkp, buffer); // read cache type
 		sd_read_app_tag_own(sdkp, buffer);
 		sd_read_write_same(sdkp, buffer);
 		sd_read_security(sdkp, buffer);
@@ -3390,11 +3390,11 @@ static int sd_probe(struct device *dev)
 					"sd_probe\n"));
 
 	error = -ENOMEM;
-	sdkp = kzalloc(sizeof(*sdkp), GFP_KERNEL);
+	sdkp = kzalloc(sizeof(*sdkp), GFP_KERNEL); // alloc scsi_disk
 	if (!sdkp)
 		goto out;
 
-	gd = __alloc_disk_node(sdp->request_queue, NUMA_NO_NODE,
+	gd = __alloc_disk_node(sdp->request_queue, NUMA_NO_NODE, // alloc gendisk
 			       &sd_bio_compl_lkclass);
 	if (!gd)
 		goto out_free;
@@ -3405,7 +3405,7 @@ static int sd_probe(struct device *dev)
 		goto out_put;
 	}
 
-	error = sd_format_disk_name("sd", index, gd->disk_name, DISK_NAME_LEN);
+	error = sd_format_disk_name("sd", index, gd->disk_name, DISK_NAME_LEN); // get dev name, like sda-sdz
 	if (error) {
 		sdev_printk(KERN_WARNING, sdp, "SCSI disk (sd) name length exceeded.\n");
 		goto out_free_index;
