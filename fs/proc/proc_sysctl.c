@@ -1638,7 +1638,7 @@ EXPORT_SYMBOL(register_sysctl_paths);
  *
  * See register_sysctl_paths for more details.
  */
-struct ctl_table_header *register_sysctl_table(struct ctl_table *table)
+struct ctl_table_header *register_sysctl_table(struct ctl_table *table) // add a dir tree in "/proc/sys"
 {
 	static const struct ctl_path null_path[] = { {} };
 

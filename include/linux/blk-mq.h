@@ -91,8 +91,8 @@ struct request {
 	unsigned int __data_len;	/* total data len */
 	sector_t __sector;		/* sector cursor */
 
-	struct bio *bio; // 每个请求由很多bio组成
-	struct bio *biotail;
+	struct bio *bio; // 每个请求由很多bio组成 // list
+	struct bio *biotail; // the last bio
 
 	union {
 		struct list_head queuelist;
@@ -500,7 +500,7 @@ struct blk_mq_tag_set {
 	unsigned int		flags;
 	void			*driver_data;
 
-	struct blk_mq_tags	**tags;
+	struct blk_mq_tags	**tags; // every hctx have a blk_mq_tags
 
 	struct blk_mq_tags	*shared_tags;
 

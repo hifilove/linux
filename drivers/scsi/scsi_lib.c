@@ -1985,7 +1985,7 @@ int scsi_mq_setup_tags(struct Scsi_Host *shost)
 	if (shost->host_tagset)
 		tag_set->flags |= BLK_MQ_F_TAG_HCTX_SHARED;
 
-	return blk_mq_alloc_tag_set(tag_set);
+	return blk_mq_alloc_tag_set(tag_set); // register processing handle for request
 }
 
 void scsi_mq_destroy_tags(struct Scsi_Host *shost)

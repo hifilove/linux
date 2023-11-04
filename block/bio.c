@@ -30,7 +30,7 @@ struct bio_alloc_cache {
 	unsigned int		nr;
 };
 
-static struct biovec_slab {
+static struct biovec_slab { // the numbler of biovec, such 16 mem segments, 64 mem segments...
 	int nr_vecs;
 	char *name;
 	struct kmem_cache *slab;
@@ -1568,7 +1568,7 @@ struct bio *bio_split(struct bio *bio, int sectors,
 	if (WARN_ON_ONCE(bio_op(bio) == REQ_OP_ZONE_APPEND))
 		return NULL;
 
-	split = bio_alloc_clone(bio->bi_bdev, bio, gfp, bs);
+	split = bio_alloc_clone(bio->bi_bdev, bio, gfp, bs); // copy from old bio, not alloc bio_vec use old
 	if (!split)
 		return NULL;
 
@@ -1577,7 +1577,7 @@ struct bio *bio_split(struct bio *bio, int sectors,
 	if (bio_integrity(split))
 		bio_integrity_trim(split);
 
-	bio_advance(bio, split->bi_iter.bi_size);
+	bio_advance(bio, split->bi_iter.bi_size); // splist bio
 
 	if (bio_flagged(bio, BIO_TRACE_COMPLETION))
 		bio_set_flag(split, BIO_TRACE_COMPLETION);

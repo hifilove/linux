@@ -6411,7 +6411,7 @@ void __noreturn do_task_dead(void)
 		cpu_relax();
 }
 
-static inline void sched_submit_work(struct task_struct *tsk)
+static inline void sched_submit_work(struct task_struct *tsk) // async rq in plug when tsk will sched
 {
 	unsigned int task_flags;
 
@@ -6437,7 +6437,7 @@ static inline void sched_submit_work(struct task_struct *tsk)
 	 * If we are going to sleep and we have plugged IO queued,
 	 * make sure to submit it to avoid deadlocks.
 	 */
-	blk_flush_plug(tsk->plug, true);
+	blk_flush_plug(tsk->plug, true); // flush rq in plug
 }
 
 static void sched_update_worker(struct task_struct *tsk)

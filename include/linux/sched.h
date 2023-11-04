@@ -1164,10 +1164,10 @@ struct task_struct {
 	void				*journal_info;
 
 	/* Stacked block device info: */
-	struct bio_list			*bio_list;
+	struct bio_list			*bio_list; // save bio form this task produceing
 
 	/* Stack plugging: */
-	struct blk_plug			*plug;
+	struct blk_plug			*plug; // plug in this task
 
 	/* VM state: */
 	struct reclaim_state		*reclaim_state;

@@ -755,16 +755,17 @@ static int __init init_scsi(void)
 {
 	int error;
 
-	error = scsi_init_procfs();
+	error = scsi_init_procfs(); // add file "/proc/scsi/scsi", it can get some msg of scsi dev
 	if (error)
 		goto cleanup_queue;
-	error = scsi_init_devinfo();
+	error = scsi_init_devinfo(); // add file "/proc/scsi/device_info"
+
 	if (error)
 		goto cleanup_procfs;
 	error = scsi_init_hosts(); // register shost_class, then there are scsi_host directory in sys/class/
 	if (error)
 		goto cleanup_devlist;
-	error = scsi_init_sysctl();
+	error = scsi_init_sysctl(); // add "/proc/sys/dev/scsi/logging_level", it can set log level and low for less
 	if (error)
 		goto cleanup_hosts;
 	error = scsi_sysfs_register(); // register sysfs and sdev_class

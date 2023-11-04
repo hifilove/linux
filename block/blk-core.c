@@ -1142,7 +1142,7 @@ void blk_start_plug_nr_ios(struct blk_plug *plug, unsigned short nr_ios)
 	/*
 	 * If this is a nested plug, don't actually assign it.
 	 */
-	if (tsk->plug)
+	if (tsk->plug) // if tsk no plug, means no plug
 		return;
 
 	plug->mq_list = NULL;

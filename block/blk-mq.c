@@ -1854,7 +1854,7 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list,
 		 */
 		if (nr_budgets)
 			nr_budgets--;
-		ret = q->mq_ops->queue_rq(hctx, &bd);
+		ret = q->mq_ops->queue_rq(hctx, &bd); // call driver queue_rq
 		switch (ret) {
 		case BLK_STS_OK:
 			queued++;
@@ -2082,7 +2082,7 @@ EXPORT_SYMBOL(blk_mq_delay_run_hw_queue);
  * pending requests to be sent. If this is true, run the queue to send requests
  * to hardware.
  */
-void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
+void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async) // Start to run a hardware queue.
 {
 	bool need_run;
 
@@ -2430,8 +2430,8 @@ static blk_status_t __blk_mq_issue_directly(struct blk_mq_hw_ctx *hctx,
 	 * Any other error (busy), just add it to our list as we
 	 * previously would have done.
 	 */
-	ret = q->mq_ops->queue_rq(hctx, &bd);
-	switch (ret) {
+	ret = q->mq_ops->queue_rq(hctx, &bd); // !
+	switch (ret) { // io is ok?
 	case BLK_STS_OK:
 		blk_mq_update_dispatch_busy(hctx, false);
 		break;
@@ -2483,7 +2483,7 @@ static blk_status_t __blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 		goto insert;
 	}
 
-	return __blk_mq_issue_directly(hctx, rq, last);
+	return __blk_mq_issue_directly(hctx, rq, last); // dirver hulk to queue_rq
 insert:
 	if (bypass_insert)
 		return BLK_STS_RESOURCE;
@@ -2507,7 +2507,7 @@ static void blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 		struct request *rq)
 {
 	blk_status_t ret =
-		__blk_mq_try_issue_directly(hctx, rq, false, true);
+		__blk_mq_try_issue_directly(hctx, rq, false, true); // to driver
 
 	if (ret == BLK_STS_RESOURCE || ret == BLK_STS_DEV_RESOURCE)
 		blk_mq_request_bypass_insert(rq, false, true);
@@ -2697,7 +2697,7 @@ static void blk_add_rq_to_plug(struct blk_plug *plug, struct request *rq)
 	} else if (plug->rq_count >= blk_plug_max_rq_count(plug) ||
 		   (!blk_queue_nomerges(rq->q) &&
 		    blk_rq_bytes(last) >= BLK_PLUG_FLUSH_SIZE)) {
-		blk_mq_flush_plug_list(plug, false);
+		blk_mq_flush_plug_list(plug, false); // unplug!!!
 		trace_block_plug(rq->q);
 	}
 
@@ -2742,13 +2742,13 @@ static struct request *blk_mq_get_new_requests(struct request_queue *q,
 
 	rq_qos_throttle(q, bio);
 
-	if (plug) {
+	if (plug) { // get rq in plug
 		data.nr_tags = plug->nr_ios;
 		plug->nr_ios = 1;
 		data.cached_rq = &plug->cached_rq;
 	}
 
-	rq = __blk_mq_alloc_requests(&data);
+	rq = __blk_mq_alloc_requests(&data); // alloc a new rq
 	if (rq)
 		return rq;
 	rq_qos_cleanup(q, bio);
@@ -2801,7 +2801,7 @@ static inline struct request *blk_mq_get_cached_request(struct request_queue *q,
  * It will not queue the request if there is an error with the bio, or at the
  * request creation.
  */
-void blk_mq_submit_bio(struct bio *bio)
+void blk_mq_submit_bio(struct bio *bio) // all bio submit in this way
 {
 	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
 	struct blk_plug *plug = blk_mq_plug(q, bio);
@@ -2811,17 +2811,17 @@ void blk_mq_submit_bio(struct bio *bio)
 	blk_status_t ret;
 
 	blk_queue_bounce(q, &bio);
-	if (blk_may_split(q, bio))
+	if (blk_may_split(q, bio)) // bio is long, split it
 		__blk_queue_split(q, &bio, &nr_segs);
 
 	if (!bio_integrity_prep(bio))
 		return;
 
-	rq = blk_mq_get_cached_request(q, plug, &bio, nr_segs);
+	rq = blk_mq_get_cached_request(q, plug, &bio, nr_segs); // merge into plug
 	if (!rq) {
 		if (!bio)
 			return;
-		rq = blk_mq_get_new_requests(q, plug, bio, nr_segs);
+		rq = blk_mq_get_new_requests(q, plug, bio, nr_segs); // get a rq
 		if (unlikely(!rq))
 			return;
 	}
@@ -2846,13 +2846,13 @@ void blk_mq_submit_bio(struct bio *bio)
 	}
 
 	if (plug)
-		blk_add_rq_to_plug(plug, rq);
-	else if ((rq->rq_flags & RQF_ELV) ||
+		blk_add_rq_to_plug(plug, rq); // add into plug
+	else if ((rq->rq_flags & RQF_ELV) || // if no plug and have rq sched
 		 (rq->mq_hctx->dispatch_busy &&
 		  (q->nr_hw_queues == 1 || !is_sync)))
 		blk_mq_sched_insert_request(rq, false, true, true);
 	else
-		blk_mq_run_dispatch_ops(rq->q,
+		blk_mq_run_dispatch_ops(rq->q, // if no plug and no rq sched
 				blk_mq_try_issue_directly(rq->mq_hctx, rq));
 }
 

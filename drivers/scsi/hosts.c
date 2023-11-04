@@ -229,7 +229,7 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 	if (error)
 		goto fail;
 
-	error = scsi_mq_setup_tags(shost);
+	error = scsi_mq_setup_tags(shost); // register ops to process request from general block layer
 	if (error)
 		goto fail;
 

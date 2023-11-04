@@ -29,7 +29,7 @@ struct page;
  *
  * This holds because page_is_mergeable() checks the above property.
  */
-struct bio_vec {
+struct bio_vec { // a mem segment in bio
 	struct page	*bv_page;
 	unsigned int	bv_len;
 	unsigned int	bv_offset;

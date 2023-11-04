@@ -309,9 +309,9 @@ static int __blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 			else
 				ret = blk_mq_do_dispatch_ctx(hctx);
 		}
-	} else if (has_sched) {
+	} else if (has_sched) { // has sched get rq from sched
 		ret = blk_mq_do_dispatch_sched(hctx);
-	} else if (hctx->dispatch_busy) {
+	} else if (hctx->dispatch_busy) { // on sched get rq from ctx
 		/* dequeue request one by one from sw queue if queue is busy */
 		ret = blk_mq_do_dispatch_ctx(hctx);
 	} else {
@@ -336,7 +336,7 @@ void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 	 * A return of -EAGAIN is an indication that hctx->dispatch is not
 	 * empty and we must run again in order to avoid starving flushes.
 	 */
-	if (__blk_mq_sched_dispatch_requests(hctx) == -EAGAIN) {
+	if (__blk_mq_sched_dispatch_requests(hctx) == -EAGAIN) { // try twice
 		if (__blk_mq_sched_dispatch_requests(hctx) == -EAGAIN)
 			blk_mq_run_hw_queue(hctx, true);
 	}
@@ -442,14 +442,14 @@ void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 		goto run;
 	}
 
-	if (e) {
+	if (e) { // if have sched
 		LIST_HEAD(list);
 
 		list_add(&rq->queuelist, &list);
-		e->type->ops.insert_requests(hctx, &list, at_head);
+		e->type->ops.insert_requests(hctx, &list, at_head); // insert into sched
 	} else {
 		spin_lock(&ctx->lock);
-		__blk_mq_insert_request(hctx, rq, at_head);
+		__blk_mq_insert_request(hctx, rq, at_head); // insert into hctx
 		spin_unlock(&ctx->lock);
 	}
 

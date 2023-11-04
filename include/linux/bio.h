@@ -653,7 +653,7 @@ static inline void bio_inc_remaining(struct bio *bio)
 #define BIO_POOL_SIZE 2
 
 struct bio_set {
-	struct kmem_cache *bio_slab;
+	struct kmem_cache *bio_slab; // bio slab
 	unsigned int front_pad;
 
 	/*

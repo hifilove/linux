@@ -255,7 +255,7 @@ struct bio {
 	blk_status_t		bi_status;
 	atomic_t		__bi_remaining;
 
-	struct bvec_iter	bi_iter;
+	struct bvec_iter	bi_iter; // this bio in where on disk
 
 	blk_qc_t		bi_cookie;
 	bio_end_io_t		*bi_end_io;
@@ -294,16 +294,16 @@ struct bio {
 
 	atomic_t		__bi_cnt;	/* pin count */
 
-	struct bio_vec		*bi_io_vec;	/* the actual vec list */
+	struct bio_vec		*bi_io_vec;	/* the actual vec list */ // some mem segments
 
-	struct bio_set		*bi_pool;
+	struct bio_set		*bi_pool; // slab of bio/bio_vec
 
 	/*
 	 * We can inline a number of vecs at the end of the bio, to avoid
 	 * double allocations for a small number of bio_vecs. This member
 	 * MUST obviously be kept at the very end of the bio.
 	 */
-	struct bio_vec		bi_inline_vecs[];
+	struct bio_vec		bi_inline_vecs[]; // some mem segments inline bio
 };
 
 #define BIO_RESET_BYTES		offsetof(struct bio, bi_max_vecs)
