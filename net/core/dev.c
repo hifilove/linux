@@ -3813,13 +3813,13 @@ no_lock_out:
 		qdisc_run_end(q);
 		rc = NET_XMIT_SUCCESS;
 	} else {
-		rc = dev_qdisc_enqueue(skb, q, &to_free, txq);
+		rc = dev_qdisc_enqueue(skb, q, &to_free, txq); // call qdisk->enqueue to skb -> qdisc
 		if (qdisc_run_begin(q)) {
 			if (unlikely(contended)) {
 				spin_unlock(&q->busylock);
 				contended = false;
 			}
-			__qdisc_run(q);
+			__qdisc_run(q); // call qdisk->dequeue to qdisc -> netdev
 			qdisc_run_end(q);
 		}
 	}
@@ -4090,7 +4090,7 @@ struct netdev_queue *netdev_core_pick_tx(struct net_device *dev,
 static int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 {
 	struct net_device *dev = skb->dev;
-	struct netdev_queue *txq;
+	struct netdev_queue *txq; // txbuff for netdev in driver
 	struct Qdisc *q;
 	int rc = -ENOMEM;
 	bool again = false;

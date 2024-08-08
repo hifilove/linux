@@ -296,21 +296,21 @@ enum qdisc_class_ops_flags {
 struct Qdisc_ops {
 	struct Qdisc_ops	*next;
 	const struct Qdisc_class_ops	*cl_ops;
-	char			id[IFNAMSIZ];
+	char			id[IFNAMSIZ]; // magic words
 	int			priv_size;
 	unsigned int		static_flags;
 
-	int 			(*enqueue)(struct sk_buff *skb,
+	int 			(*enqueue)(struct sk_buff *skb, // skb -> qdisc
 					   struct Qdisc *sch,
 					   struct sk_buff **to_free);
-	struct sk_buff *	(*dequeue)(struct Qdisc *);
+	struct sk_buff *	(*dequeue)(struct Qdisc *); // qdisc -> driver
 	struct sk_buff *	(*peek)(struct Qdisc *);
 
-	int			(*init)(struct Qdisc *sch, struct nlattr *arg,
+	int			(*init)(struct Qdisc *sch, struct nlattr *arg, // for init when create qdisc
 					struct netlink_ext_ack *extack);
 	void			(*reset)(struct Qdisc *);
 	void			(*destroy)(struct Qdisc *);
-	int			(*change)(struct Qdisc *sch,
+	int			(*change)(struct Qdisc *sch, // add new qdisc
 					  struct nlattr *arg,
 					  struct netlink_ext_ack *extack);
 	void			(*attach)(struct Qdisc *sch);
@@ -318,7 +318,7 @@ struct Qdisc_ops {
 	void			(*change_real_num_tx)(struct Qdisc *sch,
 						      unsigned int new_real_tx);
 
-	int			(*dump)(struct Qdisc *, struct sk_buff *);
+	int			(*dump)(struct Qdisc *, struct sk_buff *); // query qdisc
 	int			(*dump_stats)(struct Qdisc *, struct gnet_dump *);
 
 	void			(*ingress_block_set)(struct Qdisc *sch,

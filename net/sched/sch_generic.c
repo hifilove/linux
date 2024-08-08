@@ -412,13 +412,13 @@ void __qdisc_run(struct Qdisc *q)
 	int quota = dev_tx_weight;
 	int packets;
 
-	while (qdisc_restart(q, &packets)) {
+	while (qdisc_restart(q, &packets)) { // tran some skb
 		quota -= packets;
-		if (quota <= 0) {
+		if (quota <= 0) { // when tran lenth > quota
 			if (q->flags & TCQ_F_NOLOCK)
 				set_bit(__QDISC_STATE_MISSED, &q->state);
 			else
-				__netif_schedule(q);
+				__netif_schedule(q); // softirq do late
 
 			break;
 		}
